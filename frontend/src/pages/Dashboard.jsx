@@ -6,6 +6,7 @@ import { UploadZone } from '../components/UploadZone';
 import { LeadsTable } from '../components/LeadsTable';
 import { StatsCard } from '../components/StatsCard';
 import { UploadedLeadsPreview } from '../components/UploadedLeadsPreview';
+import { ManualLeadForm } from '../components/ManualLeadForm';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -115,6 +116,11 @@ export default function Dashboard() {
             </span>
           </div>
           <UploadZone onSuccess={handleUploadSuccess} />
+
+          {/* Manual Lead Form */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <ManualLeadForm onSuccess={() => setTimeout(() => refetch(), 500)} />
+          </div>
 
           {/* Uploaded Leads Preview */}
           <UploadedLeadsPreview leads={uploadedLeads} />

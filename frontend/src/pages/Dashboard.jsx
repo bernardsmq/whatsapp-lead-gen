@@ -7,6 +7,7 @@ import { LeadsTable } from '../components/LeadsTable';
 import { StatsCard } from '../components/StatsCard';
 import { UploadedLeadsPreview } from '../components/UploadedLeadsPreview';
 import { ManualLeadForm } from '../components/ManualLeadForm';
+import { LeadsSidebar } from '../components/LeadsSidebar';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -408,6 +409,11 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* SECTION 4: ALL LEADS SIDEBAR */}
+        <div className="mt-12 pt-12 border-t border-gray-300">
+          <LeadsSidebar leads={leads} onSelectLead={handleLeadSelect} />
         </div>
       </main>
     </div>

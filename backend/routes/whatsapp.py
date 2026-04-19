@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request
-from services.whatsapp_service import whatsapp_service
+from fastapi import APIRouter, HTTPException, Request, Form
+from services.twilio_whatsapp_service import twilio_whatsapp_service
 from services.openai_service import openai_service
 from database import supabase
 import os
@@ -7,60 +7,29 @@ import json
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
-WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "your-verify-token")
-
-@router.get("/webhook")
-async def webhook_verify(request: Request):
-    """Webhook verification endpoint for WhatsApp"""
-    # Get parameters from query string
-    hub_mode = request.query_params.get("hub.mode")
-    hub_challenge = request.query_params.get("hub.challenge")
-    hub_verify_token = request.query_params.get("hub.verify_token")
-
-    print(f"Webhook verification request - mode: {hub_mode}, token: {hub_verify_token}, challenge: {hub_challenge}")
-
-    if hub_mode == "subscribe" and hub_verify_token.strip() == WHATSAPP_VERIFY_TOKEN.strip():
-        print(f"✓ Webhook verified")
-        return int(hub_challenge)
-    else:
-        print(f"✗ Invalid webhook token (expected: '{WHATSAPP_VERIFY_TOKEN.strip()}', got: '{hub_verify_token.strip()}')")
-        raise HTTPException(status_code=403, detail="Invalid verification token")
-
 @router.post("/webhook")
 async def webhook_receive(request: Request):
-    """Receive incoming WhatsApp messages"""
+    """Receive incoming WhatsApp messages from Twilio"""
     try:
-        body = await request.json()
-        print(f"\n=== INCOMING MESSAGE ===")
-        print(json.dumps(body, indent=2))
+        # Twilio sends form data, not JSON
+        form_data = await request.form()
 
-        # Check if this is a message event
-        if body.get("object") != "whatsapp_business_account":
-            print("Not a WhatsApp business account event")
-            return {"status": "ok"}
+        from_phone = form_data.get("From")  # Format: whatsapp:+1234567890
+        message_text = form_data.get("Body")
+        message_sid = form_data.get("MessageSid")
 
-        entries = body.get("entry", [])
-        for entry in entries:
-            changes = entry.get("changes", [])
-            for change in changes:
-                value = change.get("value", {})
+        print(f"\n=== INCOMING TWILIO MESSAGE ===")
+        print(f"From: {from_phone}")
+        print(f"Message: {message_text}")
+        print(f"SID: {message_sid}")
 
-                # Check for incoming messages
-                messages = value.get("messages", [])
-                for message in messages:
-                    from_phone = message.get("from")
-                    message_id = message.get("id")
-                    message_text = None
-                    message_type = message.get("type")
+        if message_text and from_phone:
+            # Extract phone number from "whatsapp:+1234567890" format
+            clean_phone = from_phone.replace("whatsapp:", "")
+            print(f"Processing message from {clean_phone}: {message_text}")
 
-                    if message_type == "text":
-                        message_text = message.get("text", {}).get("body", "")
-
-                    if message_text and from_phone:
-                        print(f"Message from {from_phone}: {message_text}")
-
-                        # Process the message
-                        await process_incoming_message(from_phone, message_text, message_id)
+            # Process the message
+            await process_incoming_message(clean_phone, message_text, message_sid)
 
         return {"status": "ok"}
 
@@ -129,7 +98,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         print(f"AI Response: {ai_response}")
 
         # Send response back via WhatsApp
-        whatsapp_service.send_text_message(phone, ai_response)
+        twilio_whatsapp_service.send_text_message(phone, ai_response)
 
         # Store our response in conversations
         supabase.table("conversations").insert({

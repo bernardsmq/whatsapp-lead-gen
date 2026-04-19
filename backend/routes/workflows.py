@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict
-from services.whatsapp_service import whatsapp_service
+from services.twilio_whatsapp_service import twilio_whatsapp_service
 from database import supabase
 from auth import verify_token
 import asyncio
@@ -9,14 +9,14 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 @router.post("/start")
 async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
-    """Send WhatsApp messages to all leads and start qualification workflow"""
+    """Send WhatsApp messages to all leads via Twilio"""
     try:
         leads = data.get("leads", [])
 
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")
 
-        print(f"\n=== WORKFLOW START ===")
+        print(f"\n=== WORKFLOW START (TWILIO) ===")
         print(f"User: {user_id}")
         print(f"Sending WhatsApp to {len(leads)} leads")
 
@@ -31,8 +31,8 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
 
                 print(f"Sending WhatsApp to {first_name} ({phone})")
 
-                # Send WhatsApp message directly
-                whatsapp_service.send_template_message(phone, first_name)
+                # Send WhatsApp message via Twilio
+                twilio_whatsapp_service.send_template_message(phone, first_name)
 
                 # Update lead status to "contacted"
                 lead_id = lead.get("lead_id")

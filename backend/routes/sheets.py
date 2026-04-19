@@ -11,11 +11,17 @@ router = APIRouter(prefix="/sheets", tags=["sheets"])
 @router.post("/upload")
 async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(verify_token)):
     try:
+        print(f"\n=== UPLOAD START ===")
+        print(f"User ID: {user_id}")
+        print(f"File: {file.filename}")
+
         # Read file content
         content = await file.read()
 
         # Parse file
         leads_data = sheet_parser.parse_file(file.filename, content)
+        print(f"Parsed {len(leads_data)} leads from file")
+        print(f"First lead: {leads_data[0] if leads_data else 'None'}")
 
         # Create batch record
         batch = {
@@ -60,7 +66,10 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
                     continue
 
                 # Insert lead
+                print(f"Inserting lead: {lead}")
                 response = supabase.table("leads").insert(lead).execute()
+                print(f"Supabase response: {response}")
+                print(f"Response data: {response.data}")
 
                 if response.data:
                     lead_id = response.data[0]["id"]
@@ -99,13 +108,20 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
             "processed_count": len(leads_data)
         }).eq("id", batch_id).execute()
 
-        return {
+        result = {
             "message": "Sheet uploaded successfully",
             "batch_id": batch_id,
             "leads_processed": len(leads_data)
         }
+        print(f"=== UPLOAD SUCCESS ===")
+        print(f"Result: {result}\n")
+        return result
 
     except Exception as e:
+        print(f"=== UPLOAD ERROR ===")
+        print(f"Error: {str(e)}\n")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/batches")

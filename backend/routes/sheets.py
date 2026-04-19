@@ -32,11 +32,19 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
         # Insert leads into database
         for lead_data in leads_data:
             # Clean data - map column names if needed
+            # Handle "Name" column by using it as first_name if First Name doesn't exist
+            first_name = lead_data.get("First Name") or lead_data.get("first_name")
+            if not first_name and lead_data.get("Name"):
+                first_name = lead_data.get("Name").split()[0]  # Use first word as first_name
+                last_name = " ".join(lead_data.get("Name").split()[1:]) if len(lead_data.get("Name").split()) > 1 else None
+            else:
+                last_name = lead_data.get("Last Name")
+
             lead = {
                 "phone": lead_data.get("Mobile No") or lead_data.get("phone"),
-                "first_name": lead_data.get("First Name") or lead_data.get("first_name"),
+                "first_name": first_name,
                 "middle_name": lead_data.get("Middle Name"),
-                "last_name": lead_data.get("Last Name"),
+                "last_name": last_name or lead_data.get("Last Name"),
                 "email": lead_data.get("Email"),
                 "gender": lead_data.get("Gender"),
                 "nationality": lead_data.get("Nationality"),
@@ -46,11 +54,17 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
             }
 
             try:
+                # Validate required fields
+                if not lead.get("phone") or not lead.get("first_name"):
+                    print(f"Skipping lead - missing required fields. Data: {lead}")
+                    continue
+
                 # Insert lead
                 response = supabase.table("leads").insert(lead).execute()
 
                 if response.data:
                     lead_id = response.data[0]["id"]
+                    print(f"Successfully inserted lead {lead_id}: {lead.get('first_name')} {lead.get('last_name')}")
 
                     # Create qualification record
                     qual = {
@@ -70,9 +84,13 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
                             })
                         except Exception as e:
                             print(f"Warning: Failed to trigger n8n for lead {lead_id}: {str(e)}")
+                else:
+                    print(f"Insert response was empty for lead: {lead}")
 
             except Exception as e:
                 print(f"Failed to create lead: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         # Update batch status

@@ -31,7 +31,9 @@ export const ManualLeadForm = ({ onSuccess }) => {
       setSuccess(true);
       setFirstName('');
       setPhone('');
-      onSuccess(response.data);
+      if (onSuccess) {
+        onSuccess(response.data);
+      }
 
       // Clear success message after 2 seconds
       setTimeout(() => setSuccess(false), 2000);

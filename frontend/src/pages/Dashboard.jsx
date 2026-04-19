@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [showStartButton, setShowStartButton] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [uploadedLeads, setUploadedLeads] = useState([]);
+  const [manualLeads, setManualLeads] = useState([]);
 
   const handleLogout = () => {
     logout();
@@ -31,6 +32,45 @@ export default function Dashboard() {
     setShowStartButton(true);
     setUploadedLeads(data.leads || []);
     setTimeout(() => refetch(), 1000);
+  };
+
+  const handleManualLeadAdded = (data) => {
+    const newLead = data.lead;
+    setManualLeads([newLead, ...manualLeads]);
+    setTimeout(() => refetch(), 500);
+  };
+
+  const handleStartManualLeads = async () => {
+    if (manualLeads.length === 0) return;
+
+    setIsStarting(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/workflows/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          leads: manualLeads.map(lead => ({
+            lead_id: lead.id,
+            phone: lead.phone,
+            first_name: lead.first_name
+          }))
+        })
+      });
+
+      if (response.ok) {
+        alert('✅ WhatsApp messages sent to ' + manualLeads.length + ' lead(s)!');
+        setManualLeads([]);
+      } else {
+        alert('❌ Failed to send messages');
+      }
+    } catch (error) {
+      alert('❌ Error: ' + error.message);
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const handleStartWorkflow = async () => {
@@ -119,7 +159,7 @@ export default function Dashboard() {
 
           {/* Manual Lead Form */}
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <ManualLeadForm onSuccess={() => setTimeout(() => refetch(), 500)} />
+            <ManualLeadForm onSuccess={handleManualLeadAdded} />
           </div>
 
           {/* Uploaded Leads Preview */}
@@ -155,6 +195,66 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* SECTION 1.5: MANUALLY ADDED LEADS */}
+        {manualLeads.length > 0 && (
+          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-md border border-purple-200 p-8 mb-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 text-xl">
+                  📱
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Ready to Send</h2>
+              </div>
+              <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">
+                {manualLeads.length} lead{manualLeads.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full">
+                <thead className="bg-purple-100 border-b border-purple-300">
+                  <tr>
+                    <th className="px-6 py-3 text-left font-bold text-gray-900">#</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-900">Name</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-900">Phone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manualLeads.map((lead, index) => (
+                    <tr key={lead.id} className="border-b border-purple-100 hover:bg-purple-100 transition">
+                      <td className="px-6 py-4 text-gray-700 font-bold">{index + 1}</td>
+                      <td className="px-6 py-4 text-gray-900 font-medium">{lead.first_name}</td>
+                      <td className="px-6 py-4 text-gray-700">{lead.phone}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              onClick={handleStartManualLeads}
+              disabled={isStarting}
+              className={`w-full px-6 py-4 rounded-lg font-bold text-lg transition-all ${
+                isStarting
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-lg hover:scale-105'
+              }`}
+            >
+              {isStarting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block animate-spin">⏳</span>
+                  Sending Messages...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="text-xl">🚀</span>
+                  Send WhatsApp Messages
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* SECTION 2: LEAD SCORING SELECTOR */}
         <div className="mb-10">

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Request
 from services.whatsapp_service import whatsapp_service
 from services.openai_service import openai_service
 from database import supabase
@@ -10,19 +10,20 @@ router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "your-verify-token")
 
 @router.get("/webhook")
-async def webhook_verify(
-    hub_mode: str = Query(None, alias="hub.mode"),
-    hub_challenge: str = Query(None, alias="hub.challenge"),
-    hub_verify_token: str = Query(None, alias="hub.verify_token")
-):
+async def webhook_verify(request: Request):
     """Webhook verification endpoint for WhatsApp"""
-    print(f"Webhook verification request - mode: {hub_mode}, token: {hub_verify_token}")
+    # Get parameters from query string
+    hub_mode = request.query_params.get("hub.mode")
+    hub_challenge = request.query_params.get("hub.challenge")
+    hub_verify_token = request.query_params.get("hub.verify_token")
+
+    print(f"Webhook verification request - mode: {hub_mode}, token: {hub_verify_token}, challenge: {hub_challenge}")
 
     if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
         print(f"✓ Webhook verified")
         return int(hub_challenge)
     else:
-        print(f"✗ Invalid webhook token")
+        print(f"✗ Invalid webhook token (expected: {WHATSAPP_VERIFY_TOKEN}, got: {hub_verify_token})")
         raise HTTPException(status_code=403, detail="Invalid verification token")
 
 @router.post("/webhook")

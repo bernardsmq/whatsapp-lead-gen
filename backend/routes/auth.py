@@ -97,7 +97,7 @@ async def get_current_user(user_id: str = Depends(verify_token)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/reset-admin-password")
+@router.get("/reset-admin-password")
 async def reset_admin_password():
     """Temporary endpoint to reset admin password to 'password'"""
     try:

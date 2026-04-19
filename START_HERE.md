@@ -48,7 +48,7 @@ Perfect for sharing with team. System runs on the internet.
    SUPABASE_URL=https://rtaeoiwivovjovuimdue.supabase.co
    SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0YWVvaXdpdm92anZvdWltZHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzE0NTAxNzgsImV4cCI6MTk4NzAyNjE3OH0.F40cZMZQfOcDFf7IuCz7P73KDPy-IWXO-hBlvwj9WQ8
    SECRET_KEY=change-this-to-random-string
-   OPENAI_API_KEY=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
+   OPENAI_API_KEY=sk-proj-YOUR_OPENAI_API_KEY
    WHATSAPP_SALES_GUY_NUMBER=+37124811178
    FRONTEND_URL=https://your-frontend-railway.app
    ```

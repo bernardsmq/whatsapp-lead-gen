@@ -111,7 +111,8 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
         result = {
             "message": "Sheet uploaded successfully",
             "batch_id": batch_id,
-            "leads_processed": len(leads_data)
+            "leads_processed": len(leads_data),
+            "leads": leads_data  # Return the actual lead data so frontend can display it
         }
         print(f"=== UPLOAD SUCCESS ===")
         print(f"Result: {result}\n")

@@ -5,6 +5,7 @@ import { useLeads, useDashboardStats } from '../hooks/useLeads';
 import { UploadZone } from '../components/UploadZone';
 import { LeadsTable } from '../components/LeadsTable';
 import { StatsCard } from '../components/StatsCard';
+import { UploadedLeadsPreview } from '../components/UploadedLeadsPreview';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [selectedScoreFilter, setSelectedScoreFilter] = useState(null);
   const [showStartButton, setShowStartButton] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [uploadedLeads, setUploadedLeads] = useState([]);
 
   const handleLogout = () => {
     logout();
@@ -26,6 +28,7 @@ export default function Dashboard() {
 
   const handleUploadSuccess = (data) => {
     setShowStartButton(true);
+    setUploadedLeads(data.leads || []);
     setTimeout(() => refetch(), 1000);
   };
 
@@ -112,6 +115,9 @@ export default function Dashboard() {
             </span>
           </div>
           <UploadZone onSuccess={handleUploadSuccess} />
+
+          {/* Uploaded Leads Preview */}
+          <UploadedLeadsPreview leads={uploadedLeads} />
 
           {/* Start Workflow Button */}
           {showStartButton && (

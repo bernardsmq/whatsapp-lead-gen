@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
@@ -16,10 +16,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 security = HTTPBearer()
 
 def hash_password(password: str) -> str:
-    return generate_password_hash(password, method='pbkdf2:sha256')
+    """Simple SHA256 hash of password with SECRET_KEY as salt"""
+    return hashlib.sha256(f"{password}{SECRET_KEY}".encode()).hexdigest()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return check_password_hash(hashed_password, plain_password)
+    """Verify password by comparing hashes"""
+    return hash_password(plain_password) == hashed_password
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

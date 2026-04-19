@@ -33,7 +33,13 @@ async def login(request: LoginRequest):
         user = response.data[0]
 
         # Verify password
-        if not verify_password(request.password, user["password_hash"]):
+        try:
+            is_valid = verify_password(request.password, user["password_hash"])
+        except Exception as pwd_error:
+            print(f"Password verification error: {pwd_error}")
+            raise HTTPException(status_code=500, detail=f"Password verification failed: {str(pwd_error)}")
+
+        if not is_valid:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
         # Create JWT token
@@ -47,8 +53,11 @@ async def login(request: LoginRequest):
             "access_token": access_token,
             "user_id": user["id"]
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @router.post("/register")
 async def register(request: RegisterRequest):

@@ -11,16 +11,16 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "your-verify-token")
 
 @router.get("/webhook")
 async def webhook_verify(
-    mode: str = Query(None),
-    challenge: str = Query(None),
-    token: str = Query(None)
+    hub_mode: str = Query(None, alias="hub.mode"),
+    hub_challenge: str = Query(None, alias="hub.challenge"),
+    hub_verify_token: str = Query(None, alias="hub.verify_token")
 ):
     """Webhook verification endpoint for WhatsApp"""
-    print(f"Webhook verification request - mode: {mode}, token: {token}")
+    print(f"Webhook verification request - mode: {hub_mode}, token: {hub_verify_token}")
 
-    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+    if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
         print(f"✓ Webhook verified")
-        return challenge
+        return int(hub_challenge)
     else:
         print(f"✗ Invalid webhook token")
         raise HTTPException(status_code=403, detail="Invalid verification token")

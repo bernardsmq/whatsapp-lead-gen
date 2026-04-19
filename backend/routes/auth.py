@@ -96,3 +96,20 @@ async def get_current_user(user_id: str = Depends(verify_token)):
         return response.data[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reset-admin-password")
+async def reset_admin_password():
+    """Temporary endpoint to reset admin password to 'password'"""
+    try:
+        new_hash = hash_password("password")
+        response = supabase.table("users").update({
+            "password_hash": new_hash
+        }).eq("email", "admin@example.com").execute()
+
+        if response.data:
+            return {"message": "Admin password reset to 'password'"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to reset password")
+    except Exception as e:
+        print(f"Reset password error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -19,11 +19,11 @@ async def webhook_verify(request: Request):
 
     print(f"Webhook verification request - mode: {hub_mode}, token: {hub_verify_token}, challenge: {hub_challenge}")
 
-    if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
+    if hub_mode == "subscribe" and hub_verify_token.strip() == WHATSAPP_VERIFY_TOKEN.strip():
         print(f"✓ Webhook verified")
         return int(hub_challenge)
     else:
-        print(f"✗ Invalid webhook token (expected: {WHATSAPP_VERIFY_TOKEN}, got: {hub_verify_token})")
+        print(f"✗ Invalid webhook token (expected: '{WHATSAPP_VERIFY_TOKEN.strip()}', got: '{hub_verify_token.strip()}')")
         raise HTTPException(status_code=403, detail="Invalid verification token")
 
 @router.post("/webhook")

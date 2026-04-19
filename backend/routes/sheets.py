@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from services.sheet_parser import sheet_parser
-from services.n8n_client import n8n_client
 from database import supabase
 from auth import verify_token
 from uuid import uuid4
@@ -81,18 +80,6 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
                         "completed_criteria": 0
                     }
                     supabase.table("qualifications").insert(qual).execute()
-
-                    # Trigger n8n workflow to send WhatsApp message
-                    n8n_webhook = os.getenv("N8N_WEBHOOK_SEND_TEMPLATE")
-                    if n8n_webhook:
-                        try:
-                            n8n_client.trigger_workflow_webhook(n8n_webhook, {
-                                "lead_id": lead_id,
-                                "phone": lead["phone"],
-                                "first_name": lead["first_name"]
-                            })
-                        except Exception as e:
-                            print(f"Warning: Failed to trigger n8n for lead {lead_id}: {str(e)}")
                 else:
                     print(f"Insert response was empty for lead: {lead}")
 

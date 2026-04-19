@@ -1,52 +1,61 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict
-from services.n8n_client import n8n_client
+from services.whatsapp_service import whatsapp_service
+from database import supabase
 from auth import verify_token
-import os
+import asyncio
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 @router.post("/start")
 async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
-    """Start n8n workflow to send WhatsApp messages to leads"""
+    """Send WhatsApp messages to all leads and start qualification workflow"""
     try:
         leads = data.get("leads", [])
 
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")
 
-        # Get n8n webhook URL from environment
-        n8n_webhook = os.getenv("N8N_WEBHOOK_SEND_TEMPLATE")
-
-        if not n8n_webhook:
-            raise HTTPException(status_code=500, detail="n8n webhook not configured")
-
         print(f"\n=== WORKFLOW START ===")
         print(f"User: {user_id}")
-        print(f"Triggering workflow for {len(leads)} leads")
+        print(f"Sending WhatsApp to {len(leads)} leads")
 
-        # Trigger workflow for each lead
-        triggered_count = 0
+        # Send WhatsApp message to each lead
+        sent_count = 0
+        failed_count = 0
+
         for lead in leads:
             try:
-                print(f"Triggering workflow for lead {lead.get('lead_id')}")
-                response = n8n_client.trigger_workflow_webhook(n8n_webhook, {
-                    "lead_id": lead.get("lead_id"),
-                    "phone": lead.get("phone"),
-                    "first_name": lead.get("first_name")
-                })
-                triggered_count += 1
-                print(f"✓ Triggered for {lead.get('first_name')}")
+                phone = lead.get("phone")
+                first_name = lead.get("first_name")
+
+                print(f"Sending WhatsApp to {first_name} ({phone})")
+
+                # Send WhatsApp message directly
+                whatsapp_service.send_template_message(phone, first_name)
+
+                # Update lead status to "contacted"
+                lead_id = lead.get("lead_id")
+                if lead_id:
+                    supabase.table("leads").update({
+                        "status": "contacted"
+                    }).eq("id", lead_id).execute()
+
+                sent_count += 1
+                print(f"✓ Message sent to {first_name}")
+
             except Exception as e:
-                print(f"✗ Failed for lead {lead.get('lead_id')}: {str(e)}")
+                print(f"✗ Failed for {lead.get('first_name')}: {str(e)}")
+                failed_count += 1
                 continue
 
         print(f"=== WORKFLOW COMPLETE ===")
-        print(f"Triggered: {triggered_count}/{len(leads)} leads\n")
+        print(f"Sent: {sent_count}/{len(leads)} leads\n")
 
         return {
             "message": "Workflow started successfully",
-            "triggered_count": triggered_count,
+            "sent_count": sent_count,
+            "failed_count": failed_count,
             "total_leads": len(leads)
         }
 

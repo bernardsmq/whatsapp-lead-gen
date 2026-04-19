@@ -12,6 +12,8 @@ export default function Dashboard() {
   const { leads, loading, refetch } = useLeads();
   const { stats } = useDashboardStats();
   const [selectedScoreFilter, setSelectedScoreFilter] = useState(null);
+  const [showStartButton, setShowStartButton] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -23,7 +25,40 @@ export default function Dashboard() {
   };
 
   const handleUploadSuccess = (data) => {
+    setShowStartButton(true);
     setTimeout(() => refetch(), 1000);
+  };
+
+  const handleStartWorkflow = async () => {
+    setIsStarting(true);
+    try {
+      // Call backend to trigger workflow for all leads
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/workflows/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          leads: leads.map(lead => ({
+            lead_id: lead.id,
+            phone: lead.phone,
+            first_name: lead.first_name
+          }))
+        })
+      });
+
+      if (response.ok) {
+        alert('✅ Workflow started! Check n8n for progress.');
+        setShowStartButton(false);
+      } else {
+        alert('❌ Failed to start workflow');
+      }
+    } catch (error) {
+      alert('❌ Error: ' + error.message);
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   // Get recently uploaded leads (last 10)
@@ -77,6 +112,36 @@ export default function Dashboard() {
             </span>
           </div>
           <UploadZone onSuccess={handleUploadSuccess} />
+
+          {/* Start Workflow Button */}
+          {showStartButton && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <button
+                onClick={handleStartWorkflow}
+                disabled={isStarting || leads.length === 0}
+                className={`w-full px-6 py-4 rounded-lg font-bold text-lg transition-all ${
+                  isStarting || leads.length === 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-105'
+                }`}
+              >
+                {isStarting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="inline-block animate-spin">⏳</span>
+                    Starting Workflow...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="text-xl">🚀</span>
+                    Start Workflow
+                  </span>
+                )}
+              </button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Sends WhatsApp messages and starts qualification
+              </p>
+            </div>
+          )}
         </div>
 
         {/* SECTION 2: LEAD SCORING SELECTOR */}

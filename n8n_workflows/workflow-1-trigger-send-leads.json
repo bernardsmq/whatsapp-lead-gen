@@ -1,0 +1,53 @@
+{
+  "name": "Workflow 1: Trigger Send Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "send-leads",
+        "httpMethod": "POST",
+        "responseMode": "immediately"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "webhook-send-leads"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "leads"
+      },
+      "name": "Insert Leads",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://your-backend.railway.app/sheets/upload",
+        "authentication": "genericCredentialType",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"file\": \"{{$node.Webhook.json.body.file}}\",\n  \"user_id\": \"{{$node.Webhook.json.body.user_id}}\"\n}"
+      },
+      "name": "Call Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Insert Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

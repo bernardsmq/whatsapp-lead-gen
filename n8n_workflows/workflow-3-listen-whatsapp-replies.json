@@ -1,0 +1,62 @@
+{
+  "name": "Workflow 3: Listen WhatsApp Replies",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "whatsapp-webhook",
+        "httpMethod": "POST",
+        "responseMode": "immediately"
+      },
+      "name": "WhatsApp Webhook Listener",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "conversations",
+        "columns": "{\n  \"lead_id\": \"{{$node.Find Lead.json.data[0].id}}\",\n  \"message_type\": \"incoming\",\n  \"sender\": \"user\",\n  \"content\": \"{{$node.WhatsApp Webhook Listener.json.entry[0].changes[0].value.messages[0].text.body}}\"\n}"
+      },
+      "name": "Save Message",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "table": "leads",
+        "columns": "id, phone, first_name"
+      },
+      "name": "Find Lead",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 300]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook Listener": {
+      "main": [
+        [
+          {
+            "node": "Find Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Lead": {
+      "main": [
+        [
+          {
+            "node": "Save Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

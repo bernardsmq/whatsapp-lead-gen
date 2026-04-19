@@ -1,0 +1,67 @@
+{
+  "name": "Workflow 1: Send WhatsApp Template",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "send-template",
+        "httpMethod": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.instagram.com/v18.0/{{$node.Webhook.json.body.phone_number_id}}/messages",
+        "authentication": "genericCredentialType",
+        "genericCredentials": "whatsapp-api",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "{\n  \"messaging_product\": \"whatsapp\",\n  \"recipient_type\": \"individual\",\n  \"to\": \"{{$node.Webhook.json.body.phone}}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"hello_world\",\n    \"language\": {\n      \"code\": \"en_US\"\n    }\n  }\n}"
+      },
+      "name": "Send WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "resource": "recordOperations",
+        "operation": "create",
+        "supabaseUrl": "{{ $env.SUPABASE_URL }}",
+        "supabaseApiKey": "{{ $env.SUPABASE_KEY }}",
+        "table": "conversations",
+        "columns": "{\n  \"lead_id\": \"{{$node.Webhook.json.body.lead_id}}\",\n  \"message_type\": \"outgoing\",\n  \"sender\": \"system\",\n  \"content\": \"Hi {{$node.Webhook.json.body.first_name}}, we found a car that matches your needs! Reply with your details: When do you need it? What car type?\"\n}"
+      },
+      "name": "Save Message to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Save Message to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

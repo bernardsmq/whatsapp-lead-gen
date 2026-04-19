@@ -1,0 +1,32 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": {
+    "backend": {
+      "build": {
+        "builder": "dockerfile",
+        "context": "./backend"
+      },
+      "start": "python main.py",
+      "environmentVariables": {
+        "SUPABASE_URL": "${{SUPABASE_URL}}",
+        "SUPABASE_KEY": "${{SUPABASE_KEY}}",
+        "SECRET_KEY": "your-secret-key-change-in-prod",
+        "OPENAI_API_KEY": "${{OPENAI_API_KEY}}",
+        "WHATSAPP_SALES_GUY_NUMBER": "+37124811178",
+        "FRONTEND_URL": "${{FRONTEND_URL}}"
+      }
+    },
+    "frontend": {
+      "build": {
+        "builder": "dockerfile",
+        "context": "./frontend"
+      },
+      "start": "npm run preview",
+      "environmentVariables": {
+        "VITE_API_URL": "${{API_URL}}",
+        "VITE_SUPABASE_URL": "${{SUPABASE_URL}}",
+        "VITE_SUPABASE_KEY": "${{SUPABASE_KEY}}"
+      }
+    }
+  }
+}

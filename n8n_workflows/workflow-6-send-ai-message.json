@@ -1,0 +1,90 @@
+{
+  "name": "Workflow 6: Send AI Message",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "send-ai",
+        "httpMethod": "POST"
+      },
+      "name": "Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "messages": [
+          {
+            "content": "You are a car sales AI. The customer replied: {{$node.Trigger.json.body.message}}\\n\\nConversation so far: {{$node.Trigger.json.body.conversation}}\\n\\nAsk follow-up questions to gather: when they need it, what car type, short/long term, how long.\\nRespond naturally and concisely.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini"
+      },
+      "name": "Generate AI Response",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.instagram.com/v18.0/2001798287045224/messages",
+        "authentication": "genericCredentialType",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"messaging_product\": \"whatsapp\",\n  \"recipient_type\": \"individual\",\n  \"to\": \"{{$node.Trigger.json.body.phone}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{$node['Generate AI Response'].json.choices[0].message.content}}\"\n  }\n}",
+        "headerParametersJson": "{\n  \"Authorization\": \"Bearer EAASy1pOiAgsBRDUXPEDZAaReB7sLCQKjVQDTYmAlh35divSDMLdMw1qL25fo1187i8fWZAROZCBPDggrLjoZAhbmA3ZCX3TlRNIJp8UHQS1JZADMWWYdDuwWpcYTfODsQ4mwYcqWo5dL6NsXdmc7XtaBdDMzLyJTQChn4BZAvHw50JUZAlm8RsffhrokrcTvOQ2baAZA6YgsuZAQ8XuRabUnjjVCBZB4sL7pYMx8UCfBBfv9uJJWUDJeoT3GKeFB3XF6rmpspERsxGRQ1vbFS31RZC5Y88b9s4WKlJeDI1wurQZDZD\"\n}"
+      },
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "conversations",
+        "columns": "{\n  \"lead_id\": \"{{$node.Trigger.json.body.lead_id}}\",\n  \"message_type\": \"outgoing\",\n  \"sender\": \"ai\",\n  \"content\": \"{{$node['Generate AI Response'].json.choices[0].message.content}}\"\n}"
+      },
+      "name": "Save AI Message",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply": {
+      "main": [
+        [
+          {
+            "node": "Save AI Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

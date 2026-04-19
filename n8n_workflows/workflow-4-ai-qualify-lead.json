@@ -1,0 +1,88 @@
+{
+  "name": "Workflow 4: AI Qualify Lead",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-qualify",
+        "httpMethod": "POST"
+      },
+      "name": "Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "messages": [
+          {
+            "content": "You are a car sales AI. Extract from the conversation:\n1. when_needed\n2. car_type\n3. timeframe (short_term or long_term)\n4. duration\n5. special_notes\n\nConversation: {{$node.Trigger.json.body.conversation}}\n\nRespond with JSON only.",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini"
+      },
+      "name": "GPT-4o mini",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "qualifications",
+        "columns": "{\n  \"when_needed\": \"{{$json.content}}\",\n  \"car_type\": \"{{$json.content}}\",\n  \"timeframe\": \"{{$json.content}}\",\n  \"duration\": \"{{$json.content}}\",\n  \"special_notes\": \"{{$json.content}}\",\n  \"completed_criteria\": 4\n}"
+      },
+      "name": "Update Qualification",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "{{$env.BACKEND_URL}}/leads/{{$node.Trigger.json.body.lead_id}}/qualification",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParametersJson": "{{$node['GPT-4o mini'].json.choices[0].message.content}}"
+      },
+      "name": "Update Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "GPT-4o mini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4o mini": {
+      "main": [
+        [
+          {
+            "node": "Update Qualification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Qualification": {
+      "main": [
+        [
+          {
+            "node": "Update Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

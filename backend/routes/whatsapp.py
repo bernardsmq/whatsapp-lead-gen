@@ -61,7 +61,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": message_text,
-            "sender": "lead"
+            "sender": "user"
         }).execute()
 
         # Qualify the lead using OpenAI
@@ -104,7 +104,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": ai_response,
-            "sender": "agent"
+            "sender": "ai"
         }).execute()
 
         print(f"✓ Message processed and response sent")

@@ -53,16 +53,20 @@ Return ONLY valid JSON with fields: score, indicators (array), next_action (stri
     def generate_response(self, lead_name: str, lead_message: str, context: str = "") -> str:
         """Generate an AI response to send back to the lead"""
         try:
-            prompt = f"""You are a sharp car rental agent. Respond naturally to this customer message.
+            prompt = f"""You are a sharp car rental agent responding to a customer. Remember the ENTIRE conversation history.
 
-Customer: "{lead_message}"
+CONVERSATION HISTORY:
+{context}
+
+Customer's latest message: "{lead_message}"
 
 Rules:
-1. Acknowledge SPECIFICALLY what they said (if they mentioned a car model, dates, duration - confirm it sounds good)
-2. Only ask for MISSING information
-3. Be short and direct - 2 sentences MAX
-4. No signatures, no formal greetings/closings, no "I'm here to help" fluff
-5. Keep it conversational like texting, not like an email
+1. Acknowledge SPECIFICALLY what they just said (car model, dates, duration if mentioned)
+2. DO NOT ask about things they already told you - check the history first
+3. Only ask for MISSING information
+4. Be short and direct - 2 sentences MAX
+5. No signatures, no formal greetings/closings, no "I'm here to help" fluff
+6. Keep it conversational like texting, not like an email
 
 Just write the response text, nothing else."""
 

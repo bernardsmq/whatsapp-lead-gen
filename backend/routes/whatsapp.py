@@ -101,8 +101,17 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"✓ Lead qualified as {score}")
 
-        # Generate and send AI response
-        ai_response = openai_service.generate_response(first_name, message_text)
+        # Get conversation history for context
+        conv_response = supabase.table("conversations").select("content, sender").eq("lead_id", lead_id).order("created_at", desc=False).execute()
+
+        conversation_history = ""
+        if conv_response.data:
+            for msg in conv_response.data:
+                sender = "Lead" if msg["sender"] == "user" else "Agent"
+                conversation_history += f"{sender}: {msg['content']}\n"
+
+        # Generate and send AI response with conversation context
+        ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
         print(f"AI Response: {ai_response}")
 
         # Send response back via WhatsApp

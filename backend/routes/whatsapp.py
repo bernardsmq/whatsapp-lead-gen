@@ -117,11 +117,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         all_details_present = qualification.get("all_details_present", False)
 
         # Check for explicit confirmation words to be more reliable
-        confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely"]
+        confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)
 
-        # If positive confirmation AND all details present, send to sales guy
-        if (is_confirmation or has_confirmation_word) and all_details_present:
+        # If user confirms (says yes/agree/etc) and we have some car details collected, send to sales guy
+        if has_confirmation_word and car_type != "not specified":
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
@@ -129,9 +129,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             print(f"Sending lead to sales guy: {sales_msg}")
             twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
 
-            ai_response = "Perfect! Our sales team will be in touch shortly. Thanks!"
+            ai_response = "Perfect! Our team will be in touch with you shortly :)"
         # If all info collected and not yet confirmed, send confirmation message
-        elif all_details_present and not is_confirmation:
+        elif all_details_present and not has_confirmation_word:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"Sending confirmation message")

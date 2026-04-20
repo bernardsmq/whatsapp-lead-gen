@@ -82,8 +82,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         duration = qualification.get("duration", "not specified")
         dates = qualification.get("dates", "not specified")
         is_confirmation = qualification.get("is_confirmation", False)
+        all_details_present = qualification.get("all_details_present", False)
 
-        print(f"Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Is Confirmation: {is_confirmation}")
+        print(f"Extracted - Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
 
         # Update lead score
         supabase.table("leads").update({

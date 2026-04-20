@@ -1,6 +1,7 @@
 import os
+import requests
+import base64
 from typing import Dict
-from twilio.rest import Client
 
 class TwilioWhatsAppService:
     def __init__(self):
@@ -11,7 +12,8 @@ class TwilioWhatsAppService:
         if not all([self.account_sid, self.auth_token, self.twilio_number]):
             raise Exception("Missing Twilio credentials in environment variables")
 
-        self.client = Client(self.account_sid, self.auth_token)
+        self.base_url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}"
+        self.auth = (self.account_sid, self.auth_token)
 
     def send_template_message(self, phone_number: str, first_name: str) -> Dict:
         """Send WhatsApp template message to lead"""
@@ -22,14 +24,24 @@ class TwilioWhatsAppService:
 
             print(f"Sending WhatsApp template to {first_name} ({phone_number})")
 
-            message = self.client.messages.create(
-                from_=f"whatsapp:{self.twilio_number}",
-                to=f"whatsapp:{phone_number}",
-                body=f"Hi {first_name}! 👋 We found properties that match your interests. Reply YES if you'd like to learn more!"
+            data = {
+                "From": f"whatsapp:{self.twilio_number}",
+                "To": f"whatsapp:{phone_number}",
+                "Body": f"Hi {first_name}! 👋 We found properties that match your interests. Reply YES if you'd like to learn more!"
+            }
+
+            response = requests.post(
+                f"{self.base_url}/Messages.json",
+                data=data,
+                auth=self.auth
             )
 
-            print(f"✓ Message sent to {first_name}. SID: {message.sid}")
-            return {"status": "sent", "sid": message.sid}
+            response.raise_for_status()
+            result = response.json()
+            message_sid = result.get("sid", "")
+
+            print(f"✓ Message sent to {first_name}. SID: {message_sid}")
+            return {"status": "sent", "sid": message_sid}
 
         except Exception as e:
             print(f"✗ Failed to send WhatsApp message: {str(e)}")
@@ -44,14 +56,24 @@ class TwilioWhatsAppService:
 
             print(f"Sending WhatsApp text to {phone_number}")
 
-            message = self.client.messages.create(
-                from_=f"whatsapp:{self.twilio_number}",
-                to=f"whatsapp:{phone_number}",
-                body=message_text
+            data = {
+                "From": f"whatsapp:{self.twilio_number}",
+                "To": f"whatsapp:{phone_number}",
+                "Body": message_text
+            }
+
+            response = requests.post(
+                f"{self.base_url}/Messages.json",
+                data=data,
+                auth=self.auth
             )
 
-            print(f"✓ Text message sent. SID: {message.sid}")
-            return {"status": "sent", "sid": message.sid}
+            response.raise_for_status()
+            result = response.json()
+            message_sid = result.get("sid", "")
+
+            print(f"✓ Text message sent. SID: {message_sid}")
+            return {"status": "sent", "sid": message_sid}
 
         except Exception as e:
             print(f"✗ Failed to send text message: {str(e)}")

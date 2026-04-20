@@ -15,12 +15,14 @@ class OpenAIService:
             prompt = f"""You are a car rental lead qualification expert.
 A potential customer named {lead_name} has sent this message: "{message}"
 
-Analyze this message and determine:
+Extract and identify:
 1. Lead score: hot, warm, or cold (hot = ready to book now, warm = interested but needs info, cold = not interested)
-2. Key indicators: rental duration (short/long term), car type preference, urgency level
-3. Recommended next action
+2. Car type mentioned: (e.g. "Lamborghini Huracan", "SUV", "economy", "any" if not specified)
+3. Rental duration: (e.g. "long term", "2 weeks", "one month", "short term", "unknown")
+4. Specific dates mentioned: (pickup date and/or return date if any, otherwise "not specified")
+5. Is this a confirmation response (yes/agree/ofc/sure)?: true or false
 
-Return ONLY valid JSON with fields: score, indicators (array), next_action (string)"""
+Return ONLY valid JSON with fields: score, car_type, duration, dates, is_confirmation, next_action"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

@@ -69,11 +69,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         qualification = openai_service.qualify_lead(first_name, message_text)
 
         score = qualification.get("score", "cold")
-        indicators = qualification.get("indicators", [])
-        next_action = qualification.get("next_action", "Follow up")
+        car_type = qualification.get("car_type", "not specified")
+        duration = qualification.get("duration", "not specified")
+        dates = qualification.get("dates", "not specified")
+        is_confirmation = qualification.get("is_confirmation", False)
 
-        print(f"Score: {score}")
-        print(f"Indicators: {indicators}")
+        print(f"Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Is Confirmation: {is_confirmation}")
 
         # Update lead score
         supabase.table("leads").update({
@@ -81,22 +82,25 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             "status": "qualified"
         }).eq("id", lead_id).execute()
 
-        # Update or create qualification record
-        # First check if qualification exists
-        qual_response = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+        # Update or create qualification record with extracted details
+        qual_response = supabase.table("qualifications").select("id, special_notes").eq("lead_id", lead_id).execute()
 
+        # Store rental details as JSON in special_notes
         qual_data = {
             "lead_id": lead_id,
             "completed_criteria": 1 if score in ["hot", "warm"] else 0,
-            "special_notes": f"Car type: {', '.join(indicators) if indicators else 'Not specified'}"
+            "special_notes": json.dumps({
+                "car_type": car_type,
+                "duration": duration,
+                "dates": dates,
+                "confirmation_sent": False
+            })
         }
 
         if qual_response.data:
-            # Update existing
             qual_id = qual_response.data[0]["id"]
             supabase.table("qualifications").update(qual_data).eq("id", qual_id).execute()
         else:
-            # Create new
             supabase.table("qualifications").insert(qual_data).execute()
 
         print(f"✓ Lead qualified as {score}")
@@ -110,8 +114,30 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 sender = "Lead" if msg["sender"] == "user" else "Agent"
                 conversation_history += f"{sender}: {msg['content']}\n"
 
-        # Generate and send AI response with conversation context
-        ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+        # Check if all required info is collected
+        has_car = car_type != "not specified" and car_type.lower() != "unknown"
+        has_duration = duration != "not specified" and duration.lower() != "unknown"
+        has_dates = dates != "not specified" and dates.lower() != "unknown"
+        all_info_collected = has_car and has_duration and has_dates
+
+        # If all info collected and not yet confirmed, send confirmation message
+        if all_info_collected and not is_confirmation:
+            confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
+            ai_response = confirmation_msg
+            print(f"Sending confirmation message")
+        # If positive confirmation, send to sales guy
+        elif is_confirmation and all_info_collected:
+            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
+
+            # Send to sales guy
+            print(f"Sending lead to sales guy: {sales_msg}")
+            twilio_whatsapp_service.send_text_message("+37124402144", sales_msg)
+
+            ai_response = "Perfect! Our sales team will be in touch shortly. Thanks!"
+        else:
+            # Continue collecting info
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+
         print(f"AI Response: {ai_response}")
 
         # Send response back via WhatsApp

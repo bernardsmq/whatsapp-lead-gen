@@ -12,22 +12,22 @@ class OpenAIService:
     def qualify_lead(self, lead_name: str, message: str, conversation_history: str = "") -> Dict:
         """Use GPT to qualify a lead based on their message response"""
         try:
-            prompt = f"""You are a car rental lead qualification expert. Analyze the FULL conversation history.
+            prompt = f"""You are a car rental lead qualification expert. Analyze the FULL conversation.
 
-CONVERSATION HISTORY:
+FULL CONVERSATION:
 {conversation_history}
 
-Latest customer message: "{message}"
+Latest message: "{message}"
 
-Extract and identify:
-1. Lead score: hot, warm, or cold (hot = ready to book now, warm = interested but needs info, cold = not interested)
-2. Car type: Extract from ANY message in history (e.g. "Lamborghini Huracan", "SUV", "economy") - if not mentioned say "not specified"
-3. Rental duration: Extract from history (e.g. "long term", "2 weeks", "one month") - if not mentioned say "not specified"
-4. Specific dates: Extract from history if any mentioned, otherwise "not specified"
-5. Is latest message a CONFIRMATION? (responding "yes"/"agree"/"sure"/"ofc" to a confirmation question)? true or false
-6. Are all details (car type, duration, dates) present in the conversation?: true or false
+EXTRACT these details from the ENTIRE conversation (not just latest message):
+1. car_type - What specific car or car type was mentioned? (search entire history) Examples: "Lamborghini Huracan", "SUV", "economy car"
+2. duration - How long is the rental? (search entire history) Examples: "2 months", "long term", "1 week"
+3. dates - Any specific dates mentioned? (search entire history) Examples: "June 1-15", "today", "not mentioned"
+4. is_confirmation - Is the latest message confirming something? (check if it's "yes", "agree", "sure", "ofc", etc AND there was a confirmation question before it)
+5. all_details_present - Are car_type, duration, AND dates ALL found in the conversation? (true only if ALL three are present)
+6. lead_score - hot/warm/cold based on readiness to book
 
-Return ONLY valid JSON with fields: score, car_type, duration, dates, is_confirmation, all_details_present, next_action"""
+RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation, all_details_present, lead_score"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

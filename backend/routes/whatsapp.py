@@ -77,7 +77,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         print(f"Qualifying lead with OpenAI...")
         qualification = openai_service.qualify_lead(first_name, message_text, conversation_history)
 
-        score = qualification.get("score", "cold")
+        score = qualification.get("lead_score", "cold")
         car_type = qualification.get("car_type", "not specified")
         duration = qualification.get("duration", "not specified")
         dates = qualification.get("dates", "not specified")

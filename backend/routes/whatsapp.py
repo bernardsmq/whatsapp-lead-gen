@@ -82,14 +82,22 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         }).eq("id", lead_id).execute()
 
         # Update or create qualification record
+        # First check if qualification exists
+        qual_response = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+
         qual_data = {
             "lead_id": lead_id,
             "completed_criteria": 1 if score in ["hot", "warm"] else 0,
-            "special_notes": f"Indicators: {', '.join(indicators[:2])}"
+            "special_notes": f"Car type: {', '.join(indicators) if indicators else 'Not specified'}"
         }
 
-        # Try to update existing, if not create new
-        supabase.table("qualifications").upsert(qual_data).execute()
+        if qual_response.data:
+            # Update existing
+            qual_id = qual_response.data[0]["id"]
+            supabase.table("qualifications").update(qual_data).eq("id", qual_id).execute()
+        else:
+            # Create new
+            supabase.table("qualifications").insert(qual_data).execute()
 
         print(f"✓ Lead qualified as {score}")
 

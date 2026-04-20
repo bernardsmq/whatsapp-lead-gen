@@ -12,15 +12,15 @@ class OpenAIService:
     def qualify_lead(self, lead_name: str, message: str) -> Dict:
         """Use GPT to qualify a lead based on their message response"""
         try:
-            prompt = f"""You are a real estate lead qualification expert.
-A lead named {lead_name} has sent this message: "{message}"
+            prompt = f"""You are a car rental lead qualification expert.
+A potential customer named {lead_name} has sent this message: "{message}"
 
 Analyze this message and determine:
-1. Lead score: hot, warm, or cold (hot = interested + ready to act, warm = interested but unsure, cold = not interested)
-2. Key indicators found in the message
+1. Lead score: hot, warm, or cold (hot = ready to book now, warm = interested but needs info, cold = not interested)
+2. Key indicators: rental duration (short/long term), car type preference, urgency level
 3. Recommended next action
 
-Return as JSON with fields: score, indicators (array), next_action (string)"""
+Return ONLY valid JSON with fields: score, indicators (array), next_action (string)"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -53,17 +53,17 @@ Return as JSON with fields: score, indicators (array), next_action (string)"""
     def generate_response(self, lead_name: str, lead_message: str, context: str = "") -> str:
         """Generate an AI response to send back to the lead"""
         try:
-            prompt = f"""You are a helpful real estate agent responding to a lead.
-Lead name: {lead_name}
+            prompt = f"""You are a helpful car rental agent responding to a customer.
+Customer name: {lead_name}
 Their message: "{lead_message}"
-Context: {context}
 
-Write a friendly, professional response that:
-1. Acknowledges their message
-2. Asks a qualifying question
-3. Keeps it to 2-3 sentences max
+Write a friendly response that:
+1. Thanks them for their interest
+2. Asks what car type they need (economy, SUV, premium, etc)
+3. Asks when they need it and for how long
+4. Keeps it to 2-3 sentences max
 
-Keep it natural and conversational, not robotic."""
+Be conversational and helpful."""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -76,6 +76,6 @@ Keep it natural and conversational, not robotic."""
 
         except Exception as e:
             print(f"✗ Response generation error: {str(e)}")
-            return "Thanks for your message! How can I help you with your real estate needs?"
+            return "Thanks for your interest! What type of car do you need, and when would you like it for?"
 
 openai_service = OpenAIService()

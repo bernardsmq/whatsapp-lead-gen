@@ -39,16 +39,27 @@ RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation,
             result = response.choices[0].message.content
             print(f"GPT Response: {result}")
 
-            # Parse the response (expect JSON)
+            # Parse the response (expect JSON, may have markdown code blocks)
             import json
             try:
+                # Strip markdown code blocks if present
+                if "```" in result:
+                    result = result.split("```")[1]
+                    if result.startswith("json"):
+                        result = result[4:]
+                    result = result.strip()
+
                 qualification = json.loads(result)
-            except:
+            except Exception as e:
+                print(f"JSON parse error: {e}, result: {result}")
                 # If not valid JSON, create a simple response
                 qualification = {
-                    "score": "warm",
-                    "indicators": [message[:50]],
-                    "next_action": "Follow up with more information"
+                    "car_type": "not specified",
+                    "duration": "not specified",
+                    "dates": "not specified",
+                    "is_confirmation": False,
+                    "all_details_present": False,
+                    "lead_score": "cold"
                 }
 
             return qualification

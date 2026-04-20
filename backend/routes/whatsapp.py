@@ -61,7 +61,6 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": message_text,
-            "message_type": "text",
             "sender": "lead"
         }).execute()
 
@@ -105,7 +104,6 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": ai_response,
-            "message_type": "text",
             "sender": "agent"
         }).execute()
 

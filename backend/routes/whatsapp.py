@@ -126,9 +126,23 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
-            # Send to sales guy
+            # Send to sales guy via SMS (not WhatsApp - WABA restriction)
             print(f"Sending lead to sales guy: {sales_msg}")
-            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
+            try:
+                from twilio.rest import Client
+                account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+                auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+                twilio_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
+
+                client = Client(account_sid, auth_token)
+                msg = client.messages.create(
+                    from_=twilio_number,
+                    to=sales_phone,
+                    body=sales_msg
+                )
+                print(f"✓ Lead SMS sent to sales guy. SID: {msg.sid}")
+            except Exception as e:
+                print(f"✗ Failed to send SMS to sales guy: {str(e)}")
 
             ai_response = "Perfect! Our team will be in touch with you shortly :)"
         # If all info collected and not yet confirmed, send confirmation message

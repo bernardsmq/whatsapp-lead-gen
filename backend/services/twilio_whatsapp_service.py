@@ -27,7 +27,7 @@ class TwilioWhatsAppService:
             data = {
                 "From": f"whatsapp:{self.twilio_number}",
                 "To": f"whatsapp:{phone_number}",
-                "Body": f"Hi {first_name}! 👋 We found properties that match your interests. Reply YES if you'd like to learn more!"
+                "Body": f"Hi {first_name}! Looking to rent a car? Short term or long term?"
             }
 
             response = requests.post(

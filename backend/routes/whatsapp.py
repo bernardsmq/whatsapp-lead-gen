@@ -64,9 +64,18 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             "sender": "user"
         }).execute()
 
-        # Qualify the lead using OpenAI
+        # Get conversation history (including the message we just stored)
+        conv_response = supabase.table("conversations").select("content, sender").eq("lead_id", lead_id).order("created_at", desc=False).execute()
+
+        conversation_history = ""
+        if conv_response.data:
+            for msg in conv_response.data:
+                sender = "Lead" if msg["sender"] == "user" else "Agent"
+                conversation_history += f"{sender}: {msg['content']}\n"
+
+        # Qualify the lead using OpenAI WITH full conversation history
         print(f"Qualifying lead with OpenAI...")
-        qualification = openai_service.qualify_lead(first_name, message_text)
+        qualification = openai_service.qualify_lead(first_name, message_text, conversation_history)
 
         score = qualification.get("score", "cold")
         car_type = qualification.get("car_type", "not specified")
@@ -105,28 +114,10 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"✓ Lead qualified as {score}")
 
-        # Get conversation history for context
-        conv_response = supabase.table("conversations").select("content, sender").eq("lead_id", lead_id).order("created_at", desc=False).execute()
+        all_details_present = qualification.get("all_details_present", False)
 
-        conversation_history = ""
-        if conv_response.data:
-            for msg in conv_response.data:
-                sender = "Lead" if msg["sender"] == "user" else "Agent"
-                conversation_history += f"{sender}: {msg['content']}\n"
-
-        # Check if all required info is collected
-        has_car = car_type != "not specified" and car_type.lower() != "unknown"
-        has_duration = duration != "not specified" and duration.lower() != "unknown"
-        has_dates = dates != "not specified" and dates.lower() != "unknown"
-        all_info_collected = has_car and has_duration and has_dates
-
-        # If all info collected and not yet confirmed, send confirmation message
-        if all_info_collected and not is_confirmation:
-            confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
-            ai_response = confirmation_msg
-            print(f"Sending confirmation message")
-        # If positive confirmation, send to sales guy
-        elif is_confirmation and all_info_collected:
+        # If positive confirmation AND all details present, send to sales guy
+        if is_confirmation and all_details_present:
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
             # Send to sales guy
@@ -134,6 +125,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             twilio_whatsapp_service.send_text_message("+37124402144", sales_msg)
 
             ai_response = "Perfect! Our sales team will be in touch shortly. Thanks!"
+        # If all info collected and not yet confirmed, send confirmation message
+        elif all_details_present and not is_confirmation:
+            confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
+            ai_response = confirmation_msg
+            print(f"Sending confirmation message")
         else:
             # Continue collecting info
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

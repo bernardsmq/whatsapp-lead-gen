@@ -9,20 +9,25 @@ class OpenAIService:
             raise Exception("OPENAI_API_KEY not configured")
         self.client = OpenAI(api_key=api_key)
 
-    def qualify_lead(self, lead_name: str, message: str) -> Dict:
+    def qualify_lead(self, lead_name: str, message: str, conversation_history: str = "") -> Dict:
         """Use GPT to qualify a lead based on their message response"""
         try:
-            prompt = f"""You are a car rental lead qualification expert.
-A potential customer named {lead_name} has sent this message: "{message}"
+            prompt = f"""You are a car rental lead qualification expert. Analyze the FULL conversation history.
+
+CONVERSATION HISTORY:
+{conversation_history}
+
+Latest customer message: "{message}"
 
 Extract and identify:
 1. Lead score: hot, warm, or cold (hot = ready to book now, warm = interested but needs info, cold = not interested)
-2. Car type mentioned: (e.g. "Lamborghini Huracan", "SUV", "economy", "any" if not specified)
-3. Rental duration: (e.g. "long term", "2 weeks", "one month", "short term", "unknown")
-4. Specific dates mentioned: (pickup date and/or return date if any, otherwise "not specified")
-5. Is this a confirmation response (yes/agree/ofc/sure)?: true or false
+2. Car type: Extract from ANY message in history (e.g. "Lamborghini Huracan", "SUV", "economy") - if not mentioned say "not specified"
+3. Rental duration: Extract from history (e.g. "long term", "2 weeks", "one month") - if not mentioned say "not specified"
+4. Specific dates: Extract from history if any mentioned, otherwise "not specified"
+5. Is latest message a CONFIRMATION? (responding "yes"/"agree"/"sure"/"ofc" to a confirmation question)? true or false
+6. Are all details (car type, duration, dates) present in the conversation?: true or false
 
-Return ONLY valid JSON with fields: score, car_type, duration, dates, is_confirmation, next_action"""
+Return ONLY valid JSON with fields: score, car_type, duration, dates, is_confirmation, all_details_present, next_action"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

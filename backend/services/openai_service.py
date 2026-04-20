@@ -53,17 +53,18 @@ Return ONLY valid JSON with fields: score, indicators (array), next_action (stri
     def generate_response(self, lead_name: str, lead_message: str, context: str = "") -> str:
         """Generate an AI response to send back to the lead"""
         try:
-            prompt = f"""You are a helpful car rental agent responding to a customer.
-Customer name: {lead_name}
-Their message: "{lead_message}"
+            prompt = f"""You are a sharp car rental agent. Respond naturally to this customer message.
 
-Write a friendly response that:
-1. Thanks them for their interest
-2. Asks what car type they need (economy, SUV, premium, etc)
-3. Asks when they need it and for how long
-4. Keeps it to 2-3 sentences max
+Customer: "{lead_message}"
 
-Be conversational and helpful."""
+Rules:
+1. Acknowledge SPECIFICALLY what they said (if they mentioned a car model, dates, duration - confirm it sounds good)
+2. Only ask for MISSING information
+3. Be short and direct - 2 sentences MAX
+4. No signatures, no formal greetings/closings, no "I'm here to help" fluff
+5. Keep it conversational like texting, not like an email
+
+Just write the response text, nothing else."""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

@@ -12,9 +12,15 @@ if (import.meta.env.VITE_API_URL) {
   API_BASE_URL = 'http://localhost:8000';
   console.log('Using localhost API URL for development');
 } else {
-  // Production fallback - try to use same domain as frontend
-  API_BASE_URL = window.location.origin;
-  console.log('Using frontend origin as API URL:', API_BASE_URL);
+  // Production fallback - use HTTPS with frontend origin
+  API_BASE_URL = window.location.origin.replace(/^http:/, 'https:');
+  console.log('Using secure frontend origin as API URL:', API_BASE_URL);
+}
+
+// Force HTTPS for production
+if (!window.location.hostname.includes('localhost') && API_BASE_URL.startsWith('http://')) {
+  API_BASE_URL = API_BASE_URL.replace(/^http:/, 'https:');
+  console.log('🔒 Forced HTTPS for production:', API_BASE_URL);
 }
 
 console.log('API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname);

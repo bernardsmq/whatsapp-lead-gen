@@ -12,9 +12,16 @@ export const AuthProvider = ({ children }) => {
     const storedToken = localStorage.getItem('token');
     const storedUserId = localStorage.getItem('user_id');
 
+    console.log('🔍 AuthContext init - checking localStorage');
+    console.log('  Token found:', storedToken ? `${storedToken.substring(0, 20)}...` : 'null');
+    console.log('  User ID found:', storedUserId);
+
     if (storedToken && storedUserId) {
+      console.log('✓ Restored auth from localStorage');
       setToken(storedToken);
       setUser({ id: storedUserId });
+    } else {
+      console.log('✗ No token/user_id in localStorage');
     }
 
     setLoading(false);

@@ -49,10 +49,13 @@ async def login(request: LoginRequest):
             expires_delta=access_token_expires
         )
 
-        return {
+        response_data = {
             "access_token": access_token,
+            "token_type": "bearer",
             "user_id": user["id"]
         }
+        print(f"✓ Login successful for {request.email}: returning {response_data.keys()}")
+        return response_data
     except HTTPException:
         raise
     except Exception as e:

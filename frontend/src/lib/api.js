@@ -26,16 +26,18 @@ const api = axios.create({
   },
 });
 
-// NUCLEAR: Force HTTPS on every single request
+// Add authentication token to all requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('🔐 Added auth token to request');
   }
 
-  // Replace HTTP with HTTPS in baseURL
-  if (config.baseURL) {
-    config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
+  // Ensure HTTPS for production requests
+  if (config.url && config.url.startsWith('http://')) {
+    config.url = config.url.replace(/^http:\/\//, 'https://');
+    console.log('🔒 Upgraded request URL to HTTPS:', config.url);
   }
 
   return config;

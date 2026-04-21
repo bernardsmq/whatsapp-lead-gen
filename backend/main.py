@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+from datetime import datetime
 
 # Import routes
 from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads, analytics
@@ -52,7 +53,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/debug/status")
 async def debug_status():

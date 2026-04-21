@@ -22,7 +22,15 @@ async def https_redirect_middleware(request, call_next):
     """Ensure HTTPS protocol is properly recognized behind proxy"""
     if request.headers.get("x-forwarded-proto") == "https":
         request.scope["scheme"] = "https"
+
     response = await call_next(request)
+
+    # Fix redirect Location header to use HTTPS instead of HTTP
+    if "location" in response.headers:
+        location = response.headers["location"]
+        if location.startswith("http://"):
+            response.headers["location"] = location.replace("http://", "https://", 1)
+
     return response
 
 # CORS middleware

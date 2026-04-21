@@ -29,27 +29,24 @@ const api = axios.create({
 
 console.log('Axios baseURL:', api.defaults.baseURL);
 
-// Add token to requests
+// Add token to requests and FORCE HTTPS
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
 
-  console.log('Token from storage:', token ? `${token.substring(0, 20)}...` : 'NULL/EMPTY');
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('✓ Authorization header set');
-  } else {
-    console.log('✗ NO TOKEN FOUND - Request will fail with 401');
   }
 
-  // Double-check baseURL is HTTPS for railway.app
+  // CRITICAL: Force HTTPS for all railway.app requests
+  // This must be done BEFORE axios constructs the final URL
   if (config.baseURL && config.baseURL.includes('railway.app')) {
     config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
   }
 
-  // Build full URL for debugging
-  const fullUrl = config.url?.startsWith('http') ? config.url : (config.baseURL || '') + (config.url || '');
-  console.log('Request to:', fullUrl);
+  // Also ensure the URL itself is HTTPS if it's absolute
+  if (config.url && config.url.startsWith('http://') && config.url.includes('railway.app')) {
+    config.url = config.url.replace(/^http:\/\//, 'https://');
+  }
 
   return config;
 });

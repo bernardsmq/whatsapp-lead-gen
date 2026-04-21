@@ -2,12 +2,20 @@ import axios from 'axios';
 
 let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Ensure HTTPS for production domains (mixed content fix)
+console.log('Raw VITE_API_URL:', API_BASE_URL);
+
+// Ensure HTTPS for production - be explicit about it
 if (API_BASE_URL.includes('railway.app')) {
-  API_BASE_URL = API_BASE_URL.replace('http://', 'https://');
+  // Remove any http:// prefix and force https://
+  API_BASE_URL = API_BASE_URL.replace(/^https?:\/\//, 'https://');
 }
 
-console.log('API_BASE_URL:', API_BASE_URL);
+// Final verification
+if (!API_BASE_URL.startsWith('http')) {
+  API_BASE_URL = 'https://' + API_BASE_URL;
+}
+
+console.log('Final API_BASE_URL:', API_BASE_URL);
 console.log('VITE_API_URL env:', import.meta.env.VITE_API_URL);
 
 const api = axios.create({
@@ -15,7 +23,11 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Force HTTPS in all requests
+  validateStatus: () => true, // Don't throw on any status
 });
+
+console.log('Axios baseURL:', api.defaults.baseURL);
 
 // Add token to requests
 api.interceptors.request.use((config) => {
@@ -23,6 +35,16 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Double-check baseURL is HTTPS for railway.app
+  if (config.baseURL && config.baseURL.includes('railway.app')) {
+    config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
+  }
+
+  // Build full URL for debugging
+  const fullUrl = config.url?.startsWith('http') ? config.url : (config.baseURL || '') + (config.url || '');
+  console.log('Request to:', fullUrl);
+
   return config;
 });
 

@@ -59,8 +59,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      const isLoginPage = window.location.pathname === '/login';
+      if (!isLoginPage) {
+        console.warn('⚠️ 401 Unauthorized - Clearing token and redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_id');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 500);
+      }
     }
     return Promise.reject(error);
   }

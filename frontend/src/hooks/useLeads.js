@@ -15,9 +15,19 @@ export const useLeads = (status = null, score = null) => {
     } catch (err) {
       console.error('Leads API error:', err);
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch leads';
+
       // Log full error for debugging
       if (err.response?.status === 401) {
-        setError('Not authenticated. Please log in.');
+        console.error('✗ 401 Unauthorized - Token may not be in localStorage');
+        const token = localStorage.getItem('token');
+        console.error('  Token in storage:', token ? `${token.substring(0, 20)}...` : 'NULL');
+        setError('Not authenticated. Clearing cache and redirecting...');
+        // Clear and redirect after a short delay
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user_id');
+          window.location.href = '/login';
+        }, 1000);
       } else if (err.response?.status === 403) {
         setError('Access denied');
       } else {

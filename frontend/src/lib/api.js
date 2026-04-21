@@ -32,8 +32,14 @@ console.log('Axios baseURL:', api.defaults.baseURL);
 // Add token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
+
+  console.log('Token from storage:', token ? `${token.substring(0, 20)}...` : 'NULL/EMPTY');
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('✓ Authorization header set');
+  } else {
+    console.log('✗ NO TOKEN FOUND - Request will fail with 401');
   }
 
   // Double-check baseURL is HTTPS for railway.app

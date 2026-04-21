@@ -54,6 +54,32 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
+@app.get("/debug/status")
+async def debug_status():
+    """Debug endpoint to check database and system status"""
+    try:
+        from database import supabase
+
+        # Check users
+        users = supabase.table("users").select("id, email").execute()
+
+        # Check leads
+        leads = supabase.table("leads").select("id, first_name, phone").execute()
+
+        # Check conversations
+        conversations = supabase.table("conversations").select("id, lead_id").execute()
+
+        return {
+            "status": "ok",
+            "users_count": len(users.data) if users.data else 0,
+            "users": [{"email": u["email"]} for u in (users.data or [])],
+            "leads_count": len(leads.data) if leads.data else 0,
+            "leads": [{"id": l["id"], "name": l["first_name"], "phone": l["phone"]} for l in (leads.data or [])],
+            "conversations_count": len(conversations.data) if conversations.data else 0,
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

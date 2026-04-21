@@ -25,16 +25,29 @@ class Qualification(BaseModel):
 @router.get("/")
 async def get_leads(user_id: str = Depends(verify_token), status_filter: Optional[str] = None, score_filter: Optional[str] = None):
     try:
+        print(f"\n=== GET /leads ===")
+        print(f"User ID: {user_id}")
+        print(f"Status filter: {status_filter}")
+        print(f"Score filter: {score_filter}")
+
         query = supabase.table("leads").select("*, qualifications(*)")
 
         if status_filter:
+            print(f"Applying status filter: {status_filter}")
             query = query.eq("status", status_filter)
         if score_filter:
+            print(f"Applying score filter: {score_filter}")
             query = query.eq("score", score_filter)
 
+        print(f"Executing query...")
         response = query.execute()
+
+        print(f"✓ Got {len(response.data) if response.data else 0} leads")
         return response.data
     except Exception as e:
+        print(f"✗ Error in GET /leads: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{lead_id}")

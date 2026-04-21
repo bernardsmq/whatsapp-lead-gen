@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 from database import supabase
 from auth import verify_token
 
@@ -23,6 +23,7 @@ class Qualification(BaseModel):
     special_notes: Optional[str] = None
 
 @router.get("/")
+@router.get("")
 async def get_leads(user_id: str = Depends(verify_token), status_filter: Optional[str] = None, score_filter: Optional[str] = None):
     try:
         print(f"\n=== GET /leads ===")

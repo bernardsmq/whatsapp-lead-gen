@@ -16,6 +16,15 @@ app = FastAPI(
     redirect_slashes=False  # Disable automatic trailing slash redirects
 )
 
+# Middleware to handle X-Forwarded-Proto for HTTPS
+@app.middleware("http")
+async def https_redirect_middleware(request, call_next):
+    """Ensure HTTPS protocol is properly recognized behind proxy"""
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+
 # CORS middleware
 frontend_url = os.getenv("FRONTEND_URL", "https://whatsapp-lead-gen-production.up.railway.app")
 origins = [

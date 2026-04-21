@@ -16,11 +16,26 @@ export default function AllLeads() {
     setLoading(true);
     setError(null);
     try {
+      console.log('📥 AllLeads: Fetching leads...');
       const response = await leadsAPI.getAll();
+      console.log('✅ AllLeads: Got response:', response);
+      console.log('   Data:', response.data);
       setLeads(response.data || []);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch leads');
-      console.error('Error fetching leads:', err);
+      console.error('❌ AllLeads: Error fetching leads');
+      console.error('   Status:', err.response?.status);
+      console.error('   Data:', err.response?.data);
+      console.error('   Message:', err.message);
+      console.error('   Full error:', err);
+
+      if (err.response?.status === 401) {
+        setError('Not authenticated - redirecting to login...');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to fetch leads');
+      }
     } finally {
       setLoading(false);
     }

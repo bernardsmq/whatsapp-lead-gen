@@ -1,14 +1,20 @@
 import axios from 'axios';
 
-// Determine API URL at runtime based on current hostname
+// Determine API URL from environment or at runtime
 let API_BASE_URL;
 
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-  // Local development
+// First try to use the build-time environment variable
+if (import.meta.env.VITE_API_URL) {
+  API_BASE_URL = import.meta.env.VITE_API_URL;
+  console.log('Using VITE_API_URL from environment:', API_BASE_URL);
+} else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  // Local development fallback
   API_BASE_URL = 'http://localhost:8000';
+  console.log('Using localhost API URL for development');
 } else {
-  // Production - always use HTTPS
-  API_BASE_URL = 'https://whatsapp-lead-gen-production.up.railway.app';
+  // Production fallback - try to use same domain as frontend
+  API_BASE_URL = window.location.origin;
+  console.log('Using frontend origin as API URL:', API_BASE_URL);
 }
 
 console.log('API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname);

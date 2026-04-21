@@ -9,6 +9,8 @@ export const ManualLeadForm = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [newLead, setNewLead] = useState(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +35,11 @@ export const ManualLeadForm = ({ onSuccess }) => {
       );
 
       setSuccess(true);
+      // response.data contains: { message, lead_id, lead }
+      setNewLead({
+        id: response.data.lead_id,
+        ...response.data.lead
+      });
       setFirstName('');
       setPhone('');
       setCarInterest('');
@@ -41,11 +48,38 @@ export const ManualLeadForm = ({ onSuccess }) => {
         onSuccess(response.data);
       }
 
-      setTimeout(() => setSuccess(false), 2000);
+      // Keep showing success for 5 seconds, but don't clear the newLead
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to add lead');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (leadId) => {
+    setSendingMessage(true);
+    try {
+      console.log('📤 Sending WhatsApp message to lead:', leadId);
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/workflows/start`,
+        {
+          lead_ids: [leadId]
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      alert('✅ WhatsApp message sent! Lead will respond on WhatsApp');
+      setNewLead(null); // Clear the new lead after sending
+    } catch (err) {
+      console.error('❌ Failed to send message:', err);
+      alert('❌ Failed to send message: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -114,6 +148,30 @@ export const ManualLeadForm = ({ onSuccess }) => {
         <p className="mt-3 text-green-400 text-sm bg-green-900/20 p-3 rounded-lg border border-green-800">
           ✅ Lead added successfully!
         </p>
+      )}
+
+      {newLead && (
+        <div className="mt-6 p-4 bg-slate-800 rounded-lg border border-yellow-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white font-semibold">
+                {newLead.first_name || 'New Lead'}
+              </p>
+              <p className="text-slate-400 text-sm">{newLead.phone}</p>
+            </div>
+            <button
+              onClick={() => handleSendMessage(newLead.id)}
+              disabled={sendingMessage}
+              className={`px-4 py-2 rounded-lg font-bold transition-all whitespace-nowrap ml-4 ${
+                sendingMessage
+                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                  : 'bg-green-600 text-white hover:bg-green-500'
+              }`}
+            >
+              {sendingMessage ? '📤 Sending...' : '📤 Send WhatsApp'}
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );

@@ -12,6 +12,19 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
     """Send WhatsApp messages to all leads via Twilio"""
     try:
         leads = data.get("leads", [])
+        lead_ids = data.get("lead_ids", [])
+
+        # If lead_ids provided, fetch full lead data
+        if lead_ids and not leads:
+            for lead_id in lead_ids:
+                lead_response = supabase.table("leads").select("*").eq("id", lead_id).execute()
+                if lead_response.data:
+                    lead_data = lead_response.data[0]
+                    leads.append({
+                        "lead_id": lead_id,
+                        "phone": lead_data.get("phone"),
+                        "first_name": lead_data.get("first_name", "Lead")
+                    })
 
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")

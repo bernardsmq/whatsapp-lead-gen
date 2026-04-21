@@ -8,6 +8,8 @@ router = APIRouter(prefix="/manual-leads", tags=["manual-leads"])
 class ManualLeadInput(BaseModel):
     first_name: str
     phone: str
+    car_interest: str = None
+    rental_duration: str = None
 
 @router.post("/add")
 async def add_manual_lead(data: ManualLeadInput, user_id: str = Depends(verify_token)):
@@ -32,10 +34,16 @@ async def add_manual_lead(data: ManualLeadInput, user_id: str = Depends(verify_t
         if response.data:
             lead_id = response.data[0]["id"]
 
-            # Create qualification record
+            # Create qualification record with optional details
+            import json
             qual = {
                 "lead_id": lead_id,
-                "completed_criteria": 0
+                "completed_criteria": 0,
+                "special_notes": json.dumps({
+                    "car_type": data.car_interest or "not specified",
+                    "duration": data.rental_duration or "not specified",
+                    "dates": "not specified"
+                })
             }
             supabase.table("qualifications").insert(qual).execute()
 

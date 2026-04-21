@@ -20,23 +20,16 @@ const api = axios.create({
   },
 });
 
-// Add token to requests and FORCE HTTPS
+// NUCLEAR: Force HTTPS on every single request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // CRITICAL: Force HTTPS for all railway.app requests
-  // This must be done BEFORE axios constructs the final URL
-  if (config.baseURL && config.baseURL.includes('railway.app')) {
+  // Replace HTTP with HTTPS in baseURL
+  if (config.baseURL) {
     config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
-  }
-
-  // Also ensure the URL itself is HTTPS if it's absolute
-  if (config.url && config.url.startsWith('http://') && config.url.includes('railway.app')) {
-    config.url = config.url.replace(/^http:\/\//, 'https://');
   }
 
   return config;

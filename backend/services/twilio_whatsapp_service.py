@@ -16,7 +16,7 @@ class TwilioWhatsAppService:
         self.auth = (self.account_sid, self.auth_token)
 
     def send_template_message(self, phone_number: str, first_name: str) -> Dict:
-        """Send WhatsApp template message to lead"""
+        """Send WhatsApp template message to lead with affordable pricing message"""
         try:
             # Format phone number - Twilio expects E.164 format (with + prefix)
             if not phone_number.startswith("+"):
@@ -24,10 +24,20 @@ class TwilioWhatsAppService:
 
             print(f"Sending WhatsApp template to {first_name} ({phone_number})")
 
+            # Message template with lead name
+            message_body = f"""Hi {first_name}! 🚗
+
+We have AFFORDABLE cars available for:
+
+✅ SHORT-TERM (days/weeks)
+✅ LONG-TERM (months)
+
+What's your interest? Just reply with what you need!"""
+
             data = {
                 "From": f"whatsapp:{self.twilio_number}",
                 "To": f"whatsapp:{phone_number}",
-                "Body": f"Hi {first_name}! Looking to rent a car? Short term or long term?"
+                "Body": message_body
             }
 
             response = requests.post(

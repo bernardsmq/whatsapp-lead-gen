@@ -15,7 +15,7 @@ app = FastAPI(
 )
 
 # CORS middleware
-frontend_url = os.getenv("FRONTEND_URL", "https://meticulous-nourishment-production-7420.up.railway.app")
+frontend_url = os.getenv("FRONTEND_URL", "https://whatsapp-lead-gen-production.up.railway.app")
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",

@@ -72,11 +72,21 @@ async def debug_status():
 
         return {
             "status": "ok",
-            "users_count": len(users_response.data) if users_response.data else 0,
+            "timestamp": datetime.utcnow().isoformat(),
+            "cors_config": {
+                "allowed_origins": list(set([
+                    "http://localhost:3000",
+                    "http://localhost:5173",
+                    os.getenv("FRONTEND_URL", "https://whatsapp-lead-gen-production.up.railway.app"),
+                ]))
+            },
+            "database": {
+                "users_count": len(users_response.data) if users_response.data else 0,
+                "leads_count": len(leads_response.data) if leads_response.data else 0,
+                "conversations_count": len(convs_response.data) if convs_response.data else 0,
+            },
             "users": [{"email": u["email"]} for u in (users_response.data or [])],
-            "leads_count": len(leads_response.data) if leads_response.data else 0,
             "leads": [{"id": l["id"], "name": l["first_name"], "phone": l["phone"]} for l in (leads_response.data or [])],
-            "conversations_count": len(convs_response.data) if convs_response.data else 0,
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}

@@ -23,7 +23,7 @@ if (!window.location.hostname.includes('localhost') && API_BASE_URL.startsWith('
   console.log('🔒 Forced HTTPS for production:', API_BASE_URL);
 }
 
-console.log('API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname);
+console.log('✅ API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname, '| Time:', new Date().toISOString());
 
 const api = axios.create({
   baseURL: API_BASE_URL,

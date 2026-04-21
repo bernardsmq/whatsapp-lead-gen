@@ -97,6 +97,34 @@ async def get_current_user(user_id: str = Depends(verify_token)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/init-admin")
+async def init_admin():
+    """Create or reset admin user for first-time setup"""
+    try:
+        # Check if admin exists
+        response = supabase.table("users").select("*").eq("email", "admin@example.com").execute()
+
+        new_hash = hash_password("password")
+
+        if response.data:
+            # Admin exists, just reset password
+            supabase.table("users").update({
+                "password_hash": new_hash
+            }).eq("email", "admin@example.com").execute()
+            return {"message": "Admin password reset to 'password'", "created": False}
+        else:
+            # Create admin user
+            supabase.table("users").insert({
+                "email": "admin@example.com",
+                "password_hash": new_hash,
+                "name": "Admin",
+                "role": "admin"
+            }).execute()
+            return {"message": "Admin user created with password 'password'", "created": True}
+    except Exception as e:
+        print(f"Init admin error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/reset-admin-password")
 async def reset_admin_password():
     """Temporary endpoint to reset admin password to 'password'"""

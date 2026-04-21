@@ -15,11 +15,17 @@ app = FastAPI(
 )
 
 # CORS middleware
+frontend_url = os.getenv("FRONTEND_URL", "https://meticulous-nourishment-production-7420.up.railway.app")
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
-    os.getenv("FRONTEND_URL", "https://your-frontend.railway.app"),
+    frontend_url,
+    # Add both versions (with and without www, http and https)
+    frontend_url.replace("https://", "http://") if frontend_url.startswith("https://") else frontend_url,
 ]
+
+# Remove duplicates
+origins = list(set(origins))
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +33,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers

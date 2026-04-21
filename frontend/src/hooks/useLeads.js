@@ -11,9 +11,18 @@ export const useLeads = (status = null, score = null) => {
     setError(null);
     try {
       const response = await leadsAPI.getAll(status, score);
-      setLeads(response.data);
+      setLeads(response.data || []);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch leads');
+      console.error('Leads API error:', err);
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch leads';
+      // Log full error for debugging
+      if (err.response?.status === 401) {
+        setError('Not authenticated. Please log in.');
+      } else if (err.response?.status === 403) {
+        setError('Access denied');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }

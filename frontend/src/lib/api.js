@@ -25,6 +25,8 @@ if (!window.location.hostname.includes('localhost') && API_BASE_URL.startsWith('
 
 console.log('✅ API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname, '| Time:', new Date().toISOString());
 
+console.log('🚀 Creating axios instance with baseURL:', API_BASE_URL);
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -34,6 +36,8 @@ const api = axios.create({
   timeout: 30000, // 30 second timeout
 });
 
+console.log('✅ Axios instance created. Current baseURL:', api.defaults.baseURL);
+
 // Add authentication token and enforce HTTPS
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -41,11 +45,10 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Ensure HTTPS - upgrade http to https in baseURL
+  // CRITICAL: Force HTTPS on baseURL before any URL construction
   if (config.baseURL && config.baseURL.startsWith('http://')) {
-    const originalURL = config.baseURL;
-    config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
-    console.log(`🔒 Upgraded baseURL from ${originalURL} to ${config.baseURL}`);
+    config.baseURL = config.baseURL.replace('http://', 'https://');
+    console.log(`🔒 Forced baseURL to HTTPS: ${config.baseURL}`);
   }
 
   const fullURL = (config.baseURL || '') + (config.url || '');

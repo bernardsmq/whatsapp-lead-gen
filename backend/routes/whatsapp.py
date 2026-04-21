@@ -136,7 +136,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             # Mark as handled
             supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
 
-            ai_response = "Perfect! Our team will be in touch with you shortly :)"
+            # Closing message with full details
+            ai_response = f"You're all set with the {car_type} for {duration} starting {dates}. I'll finalize the details and get back to you shortly!"
         # If all info collected and not yet confirmed, send confirmation message (but only once)
         elif all_details_present and not has_confirmation_word and not is_already_handled:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"

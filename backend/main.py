@@ -61,21 +61,21 @@ async def debug_status():
         from database import supabase
 
         # Check users
-        users = supabase.table("users").select("id, email").execute()
+        users_response = supabase.table("users").select("id, email").execute()
 
         # Check leads
-        leads = supabase.table("leads").select("id, first_name, phone").execute()
+        leads_response = supabase.table("leads").select("id, first_name, phone").execute()
 
         # Check conversations
-        conversations = supabase.table("conversations").select("id, lead_id").execute()
+        convs_response = supabase.table("conversations").select("id, lead_id").execute()
 
         return {
             "status": "ok",
-            "users_count": len(users.data) if users.data else 0,
-            "users": [{"email": u["email"]} for u in (users.data or [])],
-            "leads_count": len(leads.data) if leads.data else 0,
-            "leads": [{"id": l["id"], "name": l["first_name"], "phone": l["phone"]} for l in (leads.data or [])],
-            "conversations_count": len(conversations.data) if conversations.data else 0,
+            "users_count": len(users_response.data) if users_response.data else 0,
+            "users": [{"email": u["email"]} for u in (users_response.data or [])],
+            "leads_count": len(leads_response.data) if leads_response.data else 0,
+            "leads": [{"id": l["id"], "name": l["first_name"], "phone": l["phone"]} for l in (leads_response.data or [])],
+            "conversations_count": len(convs_response.data) if convs_response.data else 0,
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}

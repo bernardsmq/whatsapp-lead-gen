@@ -59,13 +59,6 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
                 # Send WhatsApp message via Twilio
                 twilio_whatsapp_service.send_template_message(phone, first_name)
 
-                # Update lead status to "contacted"
-                lead_id = lead.get("lead_id")
-                if lead_id:
-                    supabase.table("leads").update({
-                        "status": "contacted"
-                    }).eq("id", lead_id).execute()
-
                 sent_count += 1
                 print(f"✓ Message sent to {first_name}")
 

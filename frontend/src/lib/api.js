@@ -1,33 +1,24 @@
 import axios from 'axios';
 
-let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Determine API URL based on environment
+let API_BASE_URL;
 
-console.log('Raw VITE_API_URL:', API_BASE_URL);
-
-// Ensure HTTPS for production - be explicit about it
-if (API_BASE_URL.includes('railway.app')) {
-  // Remove any http:// prefix and force https://
-  API_BASE_URL = API_BASE_URL.replace(/^https?:\/\//, 'https://');
+if (import.meta.env.DEV) {
+  // Local development
+  API_BASE_URL = 'http://localhost:8000';
+} else {
+  // Production - hardcode to ensure HTTPS
+  API_BASE_URL = 'https://whatsapp-lead-gen-production.up.railway.app';
 }
 
-// Final verification
-if (!API_BASE_URL.startsWith('http')) {
-  API_BASE_URL = 'https://' + API_BASE_URL;
-}
-
-console.log('Final API_BASE_URL:', API_BASE_URL);
-console.log('VITE_API_URL env:', import.meta.env.VITE_API_URL);
+console.log('🔗 API_BASE_URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  // Force HTTPS in all requests
-  validateStatus: () => true, // Don't throw on any status
 });
-
-console.log('Axios baseURL:', api.defaults.baseURL);
 
 // Add token to requests and FORCE HTTPS
 api.interceptors.request.use((config) => {

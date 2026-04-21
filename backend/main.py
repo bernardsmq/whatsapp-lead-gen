@@ -19,21 +19,24 @@ app = FastAPI(
 @app.middleware("http")
 async def https_redirect_middleware(request, call_next):
     """Ensure HTTPS protocol is properly recognized behind proxy and fix redirect headers"""
-    # Detect HTTPS from proxy headers
-    if request.headers.get("x-forwarded-proto") == "https":
-        request.scope["scheme"] = "https"
+    # Detect HTTPS from proxy headers (Railway sends x-forwarded-proto)
+    x_forwarded_proto = request.headers.get("x-forwarded-proto")
+    if x_forwarded_proto:
+        request.scope["scheme"] = x_forwarded_proto
+        print(f"📱 Set scheme to {x_forwarded_proto} from x-forwarded-proto header")
 
     response = await call_next(request)
 
     # Fix redirect Location header to use HTTPS instead of HTTP
-    # Check both lowercase and capitalized header names
-    for header_name in ["location", "Location"]:
-        if header_name in response.headers:
-            location = response.headers[header_name]
-            if location.startswith("http://"):
-                https_location = location.replace("http://", "https://", 1)
-                response.headers[header_name] = https_location
-                print(f"🔒 Fixed redirect Location: {location} -> {https_location}")
+    if response.status_code in [301, 302, 303, 307, 308]:
+        for header_name in ["location", "Location"]:
+            if header_name in response.headers:
+                location = response.headers[header_name]
+                print(f"🔄 Found redirect to: {location}")
+                if location.startswith("http://"):
+                    https_location = location.replace("http://", "https://", 1)
+                    response.headers[header_name] = https_location
+                    print(f"🔒 Fixed redirect Location: {location} -> {https_location}")
 
     return response
 

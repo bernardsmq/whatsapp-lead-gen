@@ -124,8 +124,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # Check if lead has already been sent to sales guy
         is_already_handled = lead.get("status") == "qualified" and score in ["hot", "warm"]
 
-        # If user confirms (says yes/agree/etc) and we have some car details collected, send to sales guy
-        if has_confirmation_word and car_type != "not specified" and not is_already_handled:
+        # If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
+        if has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 

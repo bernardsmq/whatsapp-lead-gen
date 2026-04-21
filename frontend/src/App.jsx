@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LeadDetail from './pages/LeadDetail';
+import Debug from './pages/Debug';
 import './index.css';
 
 function ProtectedRoute({ children }) {
@@ -23,6 +24,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/debug" element={<Debug />} />
       <Route
         path="/"
         element={

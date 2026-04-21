@@ -9,6 +9,7 @@ export default function Sidebar({ currentPage, setCurrentPage, onLogout }) {
     { id: 'all-leads', icon: '📋', label: 'All Leads' },
     { id: 'hot-leads', icon: '🔴', label: 'Hot Leads' },
     { id: 'warm-leads', icon: '🟡', label: 'Warm Leads' },
+    { id: 'cold-leads', icon: '⚪', label: 'Cold Leads' },
     { id: 'chats', icon: '💬', label: 'Chats' },
     { id: 'messages', icon: '✉️', label: 'Messages Sent' },
     { id: 'analytics', icon: '📈', label: 'Analytics' },

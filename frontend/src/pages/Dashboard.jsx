@@ -7,6 +7,12 @@ import { ManualLeadForm } from '../components/ManualLeadForm';
 import { StatsCard } from '../components/StatsCard';
 import Sidebar from '../components/Sidebar';
 import { analyticsAPI } from '../lib/api';
+import AllLeads from './AllLeads';
+import Chats from './Chats';
+import HotLeads from './HotLeads';
+import WarmLeads from './WarmLeads';
+import ColdLeads from './ColdLeads';
+import MessagesSent from './MessagesSent';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -68,11 +74,13 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          {currentPage === 'all-leads' && <AllLeadsPage leads={leads} onSelectLead={handleLeadSelect} />}
-          {currentPage === 'hot-leads' && <FilteredLeadsPage leads={hotLeads} filter="hot" onSelectLead={handleLeadSelect} />}
-          {currentPage === 'warm-leads' && <FilteredLeadsPage leads={warmLeads} filter="warm" onSelectLead={handleLeadSelect} />}
+          {currentPage === 'all-leads' && <AllLeads />}
+          {currentPage === 'hot-leads' && <HotLeads />}
+          {currentPage === 'warm-leads' && <WarmLeads />}
+          {currentPage === 'cold-leads' && <ColdLeads />}
+          {currentPage === 'chats' && <Chats />}
           {currentPage === 'analytics' && <AnalyticsPage stats={stats} />}
-          {currentPage === 'messages' && <MessagesPage />}
+          {currentPage === 'messages' && <MessagesSent />}
           {currentPage === 'settings' && <SettingsPage />}
         </main>
       </div>
@@ -216,123 +224,6 @@ export default function Dashboard() {
   );
 }
 
-function AllLeadsPage({ leads, onSelectLead }) {
-  return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-      <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
-        <h2 className="text-xl font-bold text-white">All Leads</h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-700 border-b border-slate-600">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LEAD</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">PHONE</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">INTEREST</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">SCORE</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LAST CONTACT</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">STATUS</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <tr key={lead.id} className="border-b border-slate-700 hover:bg-slate-700 transition">
-                <td className="px-6 py-4 text-white font-medium">{lead.first_name} {lead.last_name}</td>
-                <td className="px-6 py-4 text-slate-300">{lead.phone}</td>
-                <td className="px-6 py-4 text-slate-400">Car Rental</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    lead.score === 'hot' ? 'bg-red-600 text-white' :
-                    lead.score === 'warm' ? 'bg-yellow-600 text-white' :
-                    'bg-slate-600 text-slate-300'
-                  }`}>
-                    {lead.score === 'hot' ? '🔴' : lead.score === 'warm' ? '🟡' : '⚪'} {lead.score}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-slate-400">
-                  {new Date(lead.updated_at || lead.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-medium">
-                    {lead.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => onSelectLead(lead)}
-                    className="text-yellow-400 hover:text-yellow-300 font-medium transition"
-                  >
-                    View Chat
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function FilteredLeadsPage({ leads, filter, onSelectLead }) {
-  const filterLabels = {
-    hot: 'Hot Leads',
-    warm: 'Warm Leads',
-    cold: 'Cold Leads'
-  };
-
-  return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-      <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
-        <h2 className="text-xl font-bold text-white">{filterLabels[filter]}</h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-700 border-b border-slate-600">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LEAD</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">PHONE</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">SCORE</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">STATUS</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <tr key={lead.id} className="border-b border-slate-700 hover:bg-slate-700 transition">
-                <td className="px-6 py-4 text-white font-medium">{lead.first_name} {lead.last_name}</td>
-                <td className="px-6 py-4 text-slate-300">{lead.phone}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    lead.score === 'hot' ? 'bg-red-600 text-white' :
-                    lead.score === 'warm' ? 'bg-yellow-600 text-white' :
-                    'bg-slate-600 text-slate-300'
-                  }`}>
-                    {lead.score === 'hot' ? '🔴' : lead.score === 'warm' ? '🟡' : '⚪'} {lead.score}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-medium">
-                    {lead.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => onSelectLead(lead)}
-                    className="text-yellow-400 hover:text-yellow-300 font-medium transition"
-                  >
-                    View Chat
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
 function AnalyticsPage({ stats }) {
   return (
@@ -415,77 +306,6 @@ function AnalyticsPage({ stats }) {
   );
 }
 
-function MessagesPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true);
-      try {
-        const response = await analyticsAPI.getMessagesByDate(selectedDate);
-        setMessages(response.data);
-      } catch (error) {
-        console.error('Failed to fetch messages', error);
-      }
-      setLoading(false);
-    };
-    fetchMessages();
-  }, [selectedDate]);
-
-  return (
-    <div className="max-w-6xl">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Messages Sent</h1>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
-        />
-      </div>
-
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
-          <p className="text-slate-300">
-            Showing {messages.length} message{messages.length !== 1 ? 's' : ''} for {selectedDate}
-          </p>
-        </div>
-        <div className="divide-y divide-slate-700">
-          {loading ? (
-            <p className="px-6 py-8 text-center text-slate-400">Loading messages...</p>
-          ) : messages.length === 0 ? (
-            <p className="px-6 py-8 text-center text-slate-400">No messages for this date</p>
-          ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className="px-6 py-4 hover:bg-slate-700 transition cursor-pointer">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">{msg.lead_name}</p>
-                    <p className="text-sm text-slate-400">{msg.lead_phone}</p>
-                    <p className="text-slate-300 mt-2">{msg.message}</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      msg.sender === 'ai' ? 'bg-yellow-600 text-white' : 'bg-slate-600 text-slate-300'
-                    }`}>
-                      {msg.sender === 'ai' ? '🤖 Sent' : '📩 Received'}
-                    </span>
-                    <p className="text-xs text-slate-500 mt-2">✓ {msg.delivery_status}</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function SettingsPage() {
   return (

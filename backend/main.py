@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 
 # Import routes
-from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads
+from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads, analytics
 
 load_dotenv()
 
@@ -37,6 +37,7 @@ app.include_router(dashboard.router)
 app.include_router(workflows.router)
 app.include_router(whatsapp.router)
 app.include_router(manual_leads.router)
+app.include_router(analytics.router)
 
 @app.get("/")
 async def root():

@@ -58,4 +58,10 @@ export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats'),
 };
 
+export const analyticsAPI = {
+  getStats: () => api.get('/analytics/stats'),
+  getMessagesByDate: (date) => api.get('/analytics/messages/by-date', { params: { date_str: date } }),
+  getRecentActivity: (limit = 20) => api.get('/analytics/activity/recent', { params: { limit } }),
+};
+
 export default api;

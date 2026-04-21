@@ -53,7 +53,11 @@ export const UploadZone = ({ onSuccess }) => {
 
   return (
     <div
-      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+      className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition ${
+        isDragging
+          ? 'border-yellow-500 bg-yellow-900/10'
+          : 'border-slate-600 hover:border-slate-500 bg-slate-700/50'
+      }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -67,14 +71,12 @@ export const UploadZone = ({ onSuccess }) => {
         disabled={isLoading}
       />
       <label htmlFor="file-input" className="cursor-pointer">
-        <div className="mb-2">
-          📄
-        </div>
-        <p className="font-semibold text-gray-700">Drag and drop your file here</p>
-        <p className="text-sm text-gray-500">or click to select (CSV or Excel)</p>
+        <div className="mb-4 text-5xl">📄</div>
+        <p className="font-semibold text-white text-lg">Drag and drop your file here</p>
+        <p className="text-sm text-slate-400 mt-1">or click to select (CSV or Excel)</p>
       </label>
-      {isLoading && <p className="mt-2 text-blue-600">Uploading...</p>}
-      {error && <p className="mt-2 text-red-600">{error}</p>}
+      {isLoading && <p className="mt-4 text-yellow-400 font-medium">⏳ Uploading...</p>}
+      {error && <p className="mt-4 text-red-400">{error}</p>}
     </div>
   );
 };

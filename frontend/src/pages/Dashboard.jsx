@@ -1,24 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useLeads, useDashboardStats } from '../hooks/useLeads';
 import { UploadZone } from '../components/UploadZone';
-import { LeadsTable } from '../components/LeadsTable';
-import { StatsCard } from '../components/StatsCard';
-import { UploadedLeadsPreview } from '../components/UploadedLeadsPreview';
 import { ManualLeadForm } from '../components/ManualLeadForm';
-import { LeadsSidebar } from '../components/LeadsSidebar';
+import { StatsCard } from '../components/StatsCard';
+import Sidebar from '../components/Sidebar';
+import { analyticsAPI } from '../lib/api';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { leads, loading, refetch } = useLeads();
   const { stats } = useDashboardStats();
-  const [selectedScoreFilter, setSelectedScoreFilter] = useState(null);
-  const [showStartButton, setShowStartButton] = useState(false);
-  const [isStarting, setIsStarting] = useState(false);
-  const [uploadedLeads, setUploadedLeads] = useState([]);
-  const [manualLeads, setManualLeads] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        const response = await analyticsAPI.getRecentActivity(15);
+        setRecentActivity(response.data);
+      } catch (error) {
+        console.error('Failed to fetch activity', error);
+      }
+    };
+    fetchActivity();
+    const interval = setInterval(fetchActivity, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -29,393 +39,461 @@ export default function Dashboard() {
     navigate(`/leads/${lead.id}`);
   };
 
-  const handleUploadSuccess = (data) => {
-    setShowStartButton(true);
-    setUploadedLeads(data.leads || []);
+  const handleUploadSuccess = () => {
     setTimeout(() => refetch(), 1000);
   };
 
-  const handleManualLeadAdded = (data) => {
-    const newLead = data.lead;
-    setManualLeads([newLead, ...manualLeads]);
+  const handleManualLeadAdded = () => {
     setTimeout(() => refetch(), 500);
   };
 
-  const handleStartManualLeads = async () => {
-    if (manualLeads.length === 0) return;
-
-    setIsStarting(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/workflows/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          leads: manualLeads.map(lead => ({
-            lead_id: lead.id,
-            phone: lead.phone,
-            first_name: lead.first_name
-          }))
-        })
-      });
-
-      if (response.ok) {
-        alert('✅ WhatsApp messages sent to ' + manualLeads.length + ' lead(s)!');
-        setManualLeads([]);
-      } else {
-        alert('❌ Failed to send messages');
-      }
-    } catch (error) {
-      alert('❌ Error: ' + error.message);
-    } finally {
-      setIsStarting(false);
-    }
-  };
-
-  const handleStartWorkflow = async () => {
-    setIsStarting(true);
-    try {
-      // Call backend to trigger workflow for all leads
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/workflows/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          leads: leads.map(lead => ({
-            lead_id: lead.id,
-            phone: lead.phone,
-            first_name: lead.first_name
-          }))
-        })
-      });
-
-      if (response.ok) {
-        alert('✅ Workflow started! Check n8n for progress.');
-        setShowStartButton(false);
-      } else {
-        alert('❌ Failed to start workflow');
-      }
-    } catch (error) {
-      alert('❌ Error: ' + error.message);
-    } finally {
-      setIsStarting(false);
-    }
-  };
-
-  // Get recently uploaded leads (last 10)
-  const recentLeads = [...leads]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 10);
-
-  // Get scored leads (hot + warm)
-  const scoredLeads = leads.filter(lead => lead.score === 'hot' || lead.score === 'warm');
-
-  // Get hot leads (ready for sales)
   const hotLeads = leads.filter(lead => lead.score === 'hot');
+  const warmLeads = leads.filter(lead => lead.score === 'warm');
+  const aiMessagesSent = (stats?.by_status?.qualified || 0) + (stats?.by_status?.sent_to_sales || 0);
+  const conversionRate = stats?.total > 0 ? Math.round((hotLeads.length / stats?.total) * 100) : 0;
 
-  const scoreGroups = [
-    { score: 'hot', label: 'Hot Leads', icon: '🔴', color: 'red', count: stats?.by_score?.hot || 0 },
-    { score: 'warm', label: 'Warm Leads', icon: '🟡', color: 'amber', count: stats?.by_score?.warm || 0 },
-    { score: 'cold', label: 'Cold Leads', icon: '⚪', color: 'gray', count: stats?.by_score?.cold || 0 },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white font-bold">
-              WL
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Lead Gen Pro</h1>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition font-medium"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-10">
-
-        {/* SECTION 1: UPLOAD LEADS */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 mb-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xl">
-              📤
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900">Upload Leads</h2>
-            <span className="ml-auto text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              {stats?.total || 0} total leads
-            </span>
-          </div>
-          <UploadZone onSuccess={handleUploadSuccess} />
-
-          {/* Manual Lead Form */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <ManualLeadForm onSuccess={handleManualLeadAdded} />
-          </div>
-
-          {/* Uploaded Leads Preview */}
-          <UploadedLeadsPreview leads={uploadedLeads} />
-
-          {/* Start Workflow Button */}
-          {showStartButton && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={handleStartWorkflow}
-                disabled={isStarting || leads.length === 0}
-                className={`w-full px-6 py-4 rounded-lg font-bold text-lg transition-all ${
-                  isStarting || leads.length === 0
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-105'
-                }`}
-              >
-                {isStarting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="inline-block animate-spin">⏳</span>
-                    Starting Workflow...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="text-xl">🚀</span>
-                    Start Workflow
-                  </span>
-                )}
-              </button>
-              <p className="text-xs text-gray-500 text-center mt-2">
-                Sends WhatsApp messages and starts qualification
-              </p>
+  if (currentPage !== 'dashboard') {
+    return (
+      <div className="flex min-h-screen bg-slate-900">
+        <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} onLogout={handleLogout} />
+        <main className="flex-1 ml-64 bg-slate-900 p-8">
+          {currentPage === 'import' && (
+            <div className="max-w-4xl mx-auto">
+              <h1 className="text-3xl font-bold text-white mb-8">Import Leads</h1>
+              <div className="bg-slate-800 rounded-xl p-8 border border-slate-700">
+                <UploadZone onSuccess={handleUploadSuccess} />
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                  <ManualLeadForm onSuccess={handleManualLeadAdded} />
+                </div>
+              </div>
             </div>
           )}
-        </div>
+          {currentPage === 'all-leads' && <AllLeadsPage leads={leads} onSelectLead={handleLeadSelect} />}
+          {currentPage === 'hot-leads' && <FilteredLeadsPage leads={hotLeads} filter="hot" onSelectLead={handleLeadSelect} />}
+          {currentPage === 'warm-leads' && <FilteredLeadsPage leads={warmLeads} filter="warm" onSelectLead={handleLeadSelect} />}
+          {currentPage === 'analytics' && <AnalyticsPage stats={stats} />}
+          {currentPage === 'messages' && <MessagesPage />}
+          {currentPage === 'settings' && <SettingsPage />}
+        </main>
+      </div>
+    );
+  }
 
-        {/* SECTION 1.5: MANUALLY ADDED LEADS */}
-        {manualLeads.length > 0 && (
-          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-md border border-purple-200 p-8 mb-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 text-xl">
-                  📱
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900">Ready to Send</h2>
-              </div>
-              <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">
-                {manualLeads.length} lead{manualLeads.length !== 1 ? 's' : ''}
-              </span>
+  return (
+    <div className="flex min-h-screen bg-slate-900">
+      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} onLogout={handleLogout} />
+
+      <main className="flex-1 ml-64">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-slate-800 border-b border-slate-700 px-8 py-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+              <p className="text-slate-400 mt-1">Welcome back to RCR AI Lead Gen</p>
             </div>
-
-            <div className="overflow-x-auto mb-6">
-              <table className="w-full">
-                <thead className="bg-purple-100 border-b border-purple-300">
-                  <tr>
-                    <th className="px-6 py-3 text-left font-bold text-gray-900">#</th>
-                    <th className="px-6 py-3 text-left font-bold text-gray-900">Name</th>
-                    <th className="px-6 py-3 text-left font-bold text-gray-900">Phone</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manualLeads.map((lead, index) => (
-                    <tr key={lead.id} className="border-b border-purple-100 hover:bg-purple-100 transition">
-                      <td className="px-6 py-4 text-gray-700 font-bold">{index + 1}</td>
-                      <td className="px-6 py-4 text-gray-900 font-medium">{lead.first_name}</td>
-                      <td className="px-6 py-4 text-gray-700">{lead.phone}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
             <button
-              onClick={handleStartManualLeads}
-              disabled={isStarting}
-              className={`w-full px-6 py-4 rounded-lg font-bold text-lg transition-all ${
-                isStarting
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-lg hover:scale-105'
-              }`}
+              onClick={handleLogout}
+              className="px-4 py-2 text-slate-400 hover:text-slate-200 transition"
             >
-              {isStarting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="inline-block animate-spin">⏳</span>
-                  Sending Messages...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="text-xl">🚀</span>
-                  Send WhatsApp Messages
-                </span>
-              )}
+              Logout
             </button>
           </div>
-        )}
+        </header>
 
-        {/* SECTION 2: LEAD SCORING SELECTOR */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 text-xl">
-              ⭐
-            </div>
-            Lead Scoring
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {scoreGroups.map((group) => (
-              <button
-                key={group.score}
-                onClick={() => setSelectedScoreFilter(selectedScoreFilter === group.score ? null : group.score)}
-                className={`p-6 rounded-xl border-2 transition-all cursor-pointer ${
-                  selectedScoreFilter === group.score
-                    ? `border-${group.color}-500 bg-${group.color}-50 shadow-lg`
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
-                }`}
-              >
-                <div className="text-4xl mb-3">{group.icon}</div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{group.label}</h3>
-                <p className={`text-3xl font-bold ${
-                  group.score === 'hot' ? 'text-red-600' :
-                  group.score === 'warm' ? 'text-amber-600' :
-                  'text-gray-600'
-                }`}>
-                  {group.count}
-                </p>
-                <p className="text-sm text-gray-500 mt-2">Click to filter</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* SECTION 3: RECENTLY UPLOADED & SCORED LEADS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recently Uploaded Leads */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-transparent">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                  <span className="text-2xl">📋</span>
-                  Recently Uploaded Leads
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">{recentLeads.length} recent leads</p>
-              </div>
-
-              <div className="overflow-x-auto">
-                {recentLeads.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg">No leads yet</p>
-                    <p className="text-sm">Upload a file to get started</p>
-                  </div>
-                ) : (
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Score</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentLeads.map((lead) => (
-                        <tr
-                          key={lead.id}
-                          onClick={() => handleLeadSelect(lead)}
-                          className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition"
-                        >
-                          <td className="px-6 py-4 font-medium text-gray-900">
-                            {lead.first_name} {lead.last_name}
-                          </td>
-                          <td className="px-6 py-4 text-gray-600">{lead.phone}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              lead.score === 'hot' ? 'bg-red-100 text-red-700' :
-                              lead.score === 'warm' ? 'bg-amber-100 text-amber-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {lead.score === 'hot' ? '🔴 Hot' :
-                               lead.score === 'warm' ? '🟡 Warm' :
-                               '⚪ Cold'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                              {lead.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
+        <div className="p-8">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <StatsCard
+              label="Total Leads"
+              value={stats?.total || 0}
+              icon="📊"
+              bgColor="from-blue-600 to-blue-700"
+            />
+            <StatsCard
+              label="Hot Leads"
+              value={hotLeads.length}
+              icon="🔴"
+              bgColor="from-red-600 to-red-700"
+            />
+            <StatsCard
+              label="AI Messages Sent"
+              value={aiMessagesSent}
+              icon="💬"
+              bgColor="from-purple-600 to-purple-700"
+            />
+            <StatsCard
+              label="Conversion Rate"
+              value={`${conversionRate}%`}
+              icon="📈"
+              bgColor="from-green-600 to-green-700"
+            />
           </div>
 
-          {/* Leads Handed Over to Sales Guy */}
-          <div>
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-md border border-green-200 overflow-hidden h-full flex flex-col">
-              <div className="p-6 border-b border-green-200 bg-gradient-to-r from-green-100 to-emerald-100">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                  <span className="text-2xl">🎯</span>
-                  Sales Ready
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">Leads qualified for sales team</p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4">
-                {hotLeads.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-center">
-                    <div>
-                      <p className="text-5xl mb-3">🤝</p>
-                      <p className="text-gray-600 font-medium">No hot leads yet</p>
-                      <p className="text-sm text-gray-500 mt-2">Leads will appear here once qualified</p>
-                    </div>
-                  </div>
+          {/* Live Activity Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <div className="lg:col-span-2 bg-slate-800 rounded-xl border border-slate-700 p-6">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <span className="text-2xl">⚡</span> Live Activity
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {recentActivity.length === 0 ? (
+                  <p className="text-slate-400 text-center py-8">No recent activity</p>
                 ) : (
-                  <div className="space-y-3">
-                    {hotLeads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        onClick={() => handleLeadSelect(lead)}
-                        className="bg-white p-4 rounded-lg border-2 border-green-200 hover:border-green-400 hover:shadow-md cursor-pointer transition"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-bold text-gray-900">{lead.first_name} {lead.last_name}</p>
-                            <p className="text-sm text-gray-600">{lead.phone}</p>
-                          </div>
-                          <span className="text-2xl">🔴</span>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-full">
-                            Ready for Sales
-                          </span>
+                  recentActivity.map((activity, idx) => (
+                    <div key={idx} className="bg-slate-700 p-4 rounded-lg border border-slate-600 hover:border-yellow-500 transition">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{activity.icon}</span>
+                        <div className="flex-1">
+                          <p className="font-semibold text-white">{activity.title}</p>
+                          <p className="text-sm text-slate-400">{activity.description}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))
                 )}
               </div>
+            </div>
 
-              <div className="p-4 bg-green-100 border-t border-green-200">
-                <p className="text-sm font-bold text-green-800">
-                  {hotLeads.length} lead{hotLeads.length !== 1 ? 's' : ''} qualified
-                </p>
+            {/* Pipeline Summary */}
+            <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <span className="text-2xl">📊</span> Pipeline
+              </h2>
+              <div className="space-y-3">
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-slate-300 font-medium">Hot Leads</span>
+                    <span className="bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm">
+                      {hotLeads.length}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-600 rounded-full h-2">
+                    <div
+                      className="bg-red-600 h-2 rounded-full transition-all"
+                      style={{ width: stats?.total > 0 ? `${(hotLeads.length / stats.total) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-slate-300 font-medium">Warm Leads</span>
+                    <span className="bg-yellow-600 text-white px-3 py-1 rounded-full font-bold text-sm">
+                      {warmLeads.length}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-600 rounded-full h-2">
+                    <div
+                      className="bg-yellow-600 h-2 rounded-full transition-all"
+                      style={{ width: stats?.total > 0 ? `${(warmLeads.length / stats.total) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-slate-300 font-medium">Cold Leads</span>
+                    <span className="bg-slate-500 text-white px-3 py-1 rounded-full font-bold text-sm">
+                      {stats?.by_score?.cold || 0}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-600 rounded-full h-2">
+                    <div
+                      className="bg-slate-500 h-2 rounded-full transition-all"
+                      style={{ width: stats?.total > 0 ? `${((stats?.by_score?.cold || 0) / stats.total) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* SECTION 4: ALL LEADS SIDEBAR */}
-        <div className="mt-12 pt-12 border-t border-gray-300">
-          <LeadsSidebar leads={leads} onSelectLead={handleLeadSelect} />
-        </div>
       </main>
+    </div>
+  );
+}
+
+function AllLeadsPage({ leads, onSelectLead }) {
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+        <h2 className="text-xl font-bold text-white">All Leads</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-700 border-b border-slate-600">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LEAD</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">PHONE</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">INTEREST</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">SCORE</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LAST CONTACT</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">STATUS</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead) => (
+              <tr key={lead.id} className="border-b border-slate-700 hover:bg-slate-700 transition">
+                <td className="px-6 py-4 text-white font-medium">{lead.first_name} {lead.last_name}</td>
+                <td className="px-6 py-4 text-slate-300">{lead.phone}</td>
+                <td className="px-6 py-4 text-slate-400">Car Rental</td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    lead.score === 'hot' ? 'bg-red-600 text-white' :
+                    lead.score === 'warm' ? 'bg-yellow-600 text-white' :
+                    'bg-slate-600 text-slate-300'
+                  }`}>
+                    {lead.score === 'hot' ? '🔴' : lead.score === 'warm' ? '🟡' : '⚪'} {lead.score}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-slate-400">
+                  {new Date(lead.updated_at || lead.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-medium">
+                    {lead.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => onSelectLead(lead)}
+                    className="text-yellow-400 hover:text-yellow-300 font-medium transition"
+                  >
+                    View Chat
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function FilteredLeadsPage({ leads, filter, onSelectLead }) {
+  const filterLabels = {
+    hot: 'Hot Leads',
+    warm: 'Warm Leads',
+    cold: 'Cold Leads'
+  };
+
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+        <h2 className="text-xl font-bold text-white">{filterLabels[filter]}</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-700 border-b border-slate-600">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">LEAD</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">PHONE</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">SCORE</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">STATUS</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead) => (
+              <tr key={lead.id} className="border-b border-slate-700 hover:bg-slate-700 transition">
+                <td className="px-6 py-4 text-white font-medium">{lead.first_name} {lead.last_name}</td>
+                <td className="px-6 py-4 text-slate-300">{lead.phone}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    lead.score === 'hot' ? 'bg-red-600 text-white' :
+                    lead.score === 'warm' ? 'bg-yellow-600 text-white' :
+                    'bg-slate-600 text-slate-300'
+                  }`}>
+                    {lead.score === 'hot' ? '🔴' : lead.score === 'warm' ? '🟡' : '⚪'} {lead.score}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-medium">
+                    {lead.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => onSelectLead(lead)}
+                    className="text-yellow-400 hover:text-yellow-300 font-medium transition"
+                  >
+                    View Chat
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsPage({ stats }) {
+  return (
+    <div className="max-w-6xl">
+      <h1 className="text-3xl font-bold text-white mb-8">Analytics</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Qualification Rate</p>
+          <p className="text-4xl font-bold text-white">{stats?.qualification_rate || 0}%</p>
+          <p className="text-slate-500 text-xs mt-2">Leads with all details</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Reply Rate</p>
+          <p className="text-4xl font-bold text-white">{stats?.reply_rate || 0}%</p>
+          <p className="text-slate-500 text-xs mt-2">Leads that responded</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Avg Lead Score</p>
+          <p className="text-4xl font-bold text-white">{stats?.avg_score || 0}</p>
+          <p className="text-slate-500 text-xs mt-2">Hot=3, Warm=2, Cold=1</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Sales Handoffs Today</p>
+          <p className="text-4xl font-bold text-white">{stats?.sales_handoffs_today || 0}</p>
+          <p className="text-slate-500 text-xs mt-2">Sent to sales team</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Total Sales Handoffs</p>
+          <p className="text-4xl font-bold text-white">{stats?.total_sales_handoffs || 0}</p>
+          <p className="text-slate-500 text-xs mt-2">All time</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <p className="text-slate-400 text-sm font-medium mb-2">Full Info Gathered</p>
+          <p className="text-4xl font-bold text-white">{stats?.full_info_gathered || 0}%</p>
+          <p className="text-slate-500 text-xs mt-2">Complete lead data</p>
+        </div>
+      </div>
+
+      <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <h2 className="text-xl font-bold text-white mb-6">AI Performance</h2>
+        <div className="space-y-6">
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-slate-300">Reply Rate</span>
+              <span className="text-white font-bold">{stats?.reply_rate || 0}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats?.reply_rate || 0}%` }} />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-slate-300">Full Info Gathered</span>
+              <span className="text-white font-bold">{stats?.full_info_gathered || 0}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats?.full_info_gathered || 0}%` }} />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="text-slate-300">Qualification Rate</span>
+              <span className="text-white font-bold">{stats?.qualification_rate || 0}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${stats?.qualification_rate || 0}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessagesPage() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      setLoading(true);
+      try {
+        const response = await analyticsAPI.getMessagesByDate(selectedDate);
+        setMessages(response.data);
+      } catch (error) {
+        console.error('Failed to fetch messages', error);
+      }
+      setLoading(false);
+    };
+    fetchMessages();
+  }, [selectedDate]);
+
+  return (
+    <div className="max-w-6xl">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-white">Messages Sent</h1>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="bg-slate-700 text-white px-4 py-2 rounded-lg border border-slate-600"
+        />
+      </div>
+
+      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+        <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+          <p className="text-slate-300">
+            Showing {messages.length} message{messages.length !== 1 ? 's' : ''} for {selectedDate}
+          </p>
+        </div>
+        <div className="divide-y divide-slate-700">
+          {loading ? (
+            <p className="px-6 py-8 text-center text-slate-400">Loading messages...</p>
+          ) : messages.length === 0 ? (
+            <p className="px-6 py-8 text-center text-slate-400">No messages for this date</p>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className="px-6 py-4 hover:bg-slate-700 transition cursor-pointer">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">{msg.lead_name}</p>
+                    <p className="text-sm text-slate-400">{msg.lead_phone}</p>
+                    <p className="text-slate-300 mt-2">{msg.message}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {new Date(msg.created_at).toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      msg.sender === 'ai' ? 'bg-yellow-600 text-white' : 'bg-slate-600 text-slate-300'
+                    }`}>
+                      {msg.sender === 'ai' ? '🤖 Sent' : '📩 Received'}
+                    </span>
+                    <p className="text-xs text-slate-500 mt-2">✓ {msg.delivery_status}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage() {
+  return (
+    <div className="max-w-4xl">
+      <h1 className="text-3xl font-bold text-white mb-8">Settings</h1>
+      <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
+        <p className="text-slate-400">Settings coming soon...</p>
+      </div>
     </div>
   );
 }

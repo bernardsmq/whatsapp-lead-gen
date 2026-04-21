@@ -4,6 +4,8 @@ import axios from 'axios';
 export const ManualLeadForm = ({ onSuccess }) => {
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
+  const [carInterest, setCarInterest] = useState('');
+  const [rentalDuration, setRentalDuration] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -19,7 +21,9 @@ export const ManualLeadForm = ({ onSuccess }) => {
         `${import.meta.env.VITE_API_URL}/manual-leads/add`,
         {
           first_name: firstName,
-          phone: phone
+          phone: phone,
+          car_interest: carInterest,
+          rental_duration: rentalDuration
         },
         {
           headers: {
@@ -31,11 +35,12 @@ export const ManualLeadForm = ({ onSuccess }) => {
       setSuccess(true);
       setFirstName('');
       setPhone('');
+      setCarInterest('');
+      setRentalDuration('');
       if (onSuccess) {
         onSuccess(response.data);
       }
 
-      // Clear success message after 2 seconds
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to add lead');
@@ -45,29 +50,45 @@ export const ManualLeadForm = ({ onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="bg-slate-700 p-6 rounded-xl border border-slate-600">
+      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
         <span className="text-2xl">➕</span>
-        Add Lead Manually (for testing)
+        Add Lead Manually
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <input
           type="text"
-          placeholder="First Name"
+          placeholder="Name"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           required
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2 border border-slate-600 rounded-lg bg-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
         />
 
         <input
           type="tel"
-          placeholder="Phone Number (e.g., +37124811178)"
+          placeholder="Phone Number"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           required
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2 border border-slate-600 rounded-lg bg-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+        />
+
+        <input
+          type="text"
+          placeholder="Car Interest (optional)"
+          value={carInterest}
+          onChange={(e) => setCarInterest(e.target.value)}
+          className="px-4 py-2 border border-slate-600 rounded-lg bg-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+        />
+
+        <input
+          type="text"
+          placeholder="Rental Duration (optional)"
+          value={rentalDuration}
+          onChange={(e) => setRentalDuration(e.target.value)}
+          className="px-4 py-2 border border-slate-600 rounded-lg bg-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
         />
       </div>
 
@@ -76,21 +97,21 @@ export const ManualLeadForm = ({ onSuccess }) => {
         disabled={loading}
         className={`w-full px-4 py-2 rounded-lg font-bold transition-all ${
           loading
-            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+            : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'
         }`}
       >
         {loading ? 'Adding...' : 'Add Lead'}
       </button>
 
       {error && (
-        <p className="mt-3 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+        <p className="mt-3 text-red-400 text-sm bg-red-900/20 p-3 rounded-lg border border-red-800">
           ❌ {error}
         </p>
       )}
 
       {success && (
-        <p className="mt-3 text-green-600 text-sm bg-green-50 p-3 rounded-lg">
+        <p className="mt-3 text-green-400 text-sm bg-green-900/20 p-3 rounded-lg border border-green-800">
           ✅ Lead added successfully!
         </p>
       )}

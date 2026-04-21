@@ -121,8 +121,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)
 
+        # Check if lead has already been sent to sales guy
+        is_already_handled = lead.get("status") == "qualified" and score in ["hot", "warm"]
+
         # If user confirms (says yes/agree/etc) and we have some car details collected, send to sales guy
-        if has_confirmation_word and car_type != "not specified":
+        if has_confirmation_word and car_type != "not specified" and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
@@ -130,14 +133,17 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             print(f"Sending lead to sales guy: {sales_msg}")
             twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
 
+            # Mark as handled
+            supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+
             ai_response = "Perfect! Our team will be in touch with you shortly :)"
-        # If all info collected and not yet confirmed, send confirmation message
-        elif all_details_present and not has_confirmation_word:
+        # If all info collected and not yet confirmed, send confirmation message (but only once)
+        elif all_details_present and not has_confirmation_word and not is_already_handled:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"Sending confirmation message")
         else:
-            # Continue collecting info
+            # Lead already handled or new question asked - just respond naturally
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
 
         print(f"AI Response: {ai_response}")

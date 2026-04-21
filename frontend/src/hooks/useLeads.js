@@ -10,10 +10,18 @@ export const useLeads = (status = null, score = null) => {
     setLoading(true);
     setError(null);
     try {
+      console.log('📥 Fetching leads with status:', status, 'score:', score);
       const response = await leadsAPI.getAll(status, score);
+      console.log('✅ Leads response:', response);
+      console.log('   Data:', response.data);
       setLeads(response.data || []);
     } catch (err) {
-      console.error('Leads API error:', err);
+      console.error('❌ Leads API error:', err);
+      console.error('   Status:', err.response?.status);
+      console.error('   Data:', err.response?.data);
+      console.error('   Message:', err.message);
+      console.error('   Full error:', err);
+
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch leads';
 
       // Log full error for debugging
@@ -30,6 +38,9 @@ export const useLeads = (status = null, score = null) => {
         }, 1000);
       } else if (err.response?.status === 403) {
         setError('Access denied');
+      } else if (err.response?.status === 307) {
+        console.error('⚠️ Got 307 Redirect - endpoint returning redirect instead of data');
+        setError('Server error: endpoint redirecting');
       } else {
         setError(errorMsg);
       }

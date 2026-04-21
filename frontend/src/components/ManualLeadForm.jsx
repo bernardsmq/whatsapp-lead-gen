@@ -36,10 +36,15 @@ export const ManualLeadForm = ({ onSuccess }) => {
 
       setSuccess(true);
       // response.data contains: { message, lead_id, lead }
-      setNewLead({
-        id: response.data.lead_id,
+      console.log('✅ Lead added response:', response.data);
+      const leadData = {
+        id: response.data.lead_id || response.data.id,
+        first_name: response.data.first_name || firstName,
+        phone: response.data.phone || phone,
         ...response.data.lead
-      });
+      };
+      console.log('📍 Setting newLead:', leadData);
+      setNewLead(leadData);
       setFirstName('');
       setPhone('');
       setCarInterest('');
@@ -60,23 +65,30 @@ export const ManualLeadForm = ({ onSuccess }) => {
   const handleSendMessage = async (leadId) => {
     setSendingMessage(true);
     try {
-      console.log('📤 Sending WhatsApp message to lead:', leadId);
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/workflows/start`,
-        {
-          lead_ids: [leadId]
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      console.log('📤 Sending WhatsApp to lead ID:', leadId);
+      const token = localStorage.getItem('token');
+      console.log('Token available:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
 
+      const url = `${import.meta.env.VITE_API_URL}/workflows/start`;
+      const payload = { lead_ids: [leadId] };
+
+      console.log('Request URL:', url);
+      console.log('Payload:', payload);
+
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('✅ API Response:', response.data);
       alert('✅ WhatsApp message sent! Lead will respond on WhatsApp');
       setNewLead(null); // Clear the new lead after sending
     } catch (err) {
-      console.error('❌ Failed to send message:', err);
+      console.error('❌ Send message error:', err);
+      console.error('  Status:', err.response?.status);
+      console.error('  Data:', err.response?.data);
+      console.error('  Message:', err.message);
       alert('❌ Failed to send message: ' + (err.response?.data?.detail || err.message));
     } finally {
       setSendingMessage(false);
@@ -152,6 +164,10 @@ export const ManualLeadForm = ({ onSuccess }) => {
 
       {newLead && (
         <div className="mt-6 p-4 bg-slate-800 rounded-lg border border-yellow-500">
+          <div className="mb-3 text-xs text-slate-400">
+            <p>Lead ID: {newLead.id}</p>
+            <p>Name: {newLead.first_name} | Phone: {newLead.phone}</p>
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white font-semibold">
@@ -160,7 +176,10 @@ export const ManualLeadForm = ({ onSuccess }) => {
               <p className="text-slate-400 text-sm">{newLead.phone}</p>
             </div>
             <button
-              onClick={() => handleSendMessage(newLead.id)}
+              onClick={() => {
+                console.log('🔘 Send button clicked for lead:', newLead.id);
+                handleSendMessage(newLead.id);
+              }}
               disabled={sendingMessage}
               className={`px-4 py-2 rounded-lg font-bold transition-all whitespace-nowrap ml-4 ${
                 sendingMessage

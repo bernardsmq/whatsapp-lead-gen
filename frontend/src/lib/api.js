@@ -23,22 +23,27 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-Client-Version': `${Date.now()}`, // Cache busting header
   },
+  timeout: 30000, // 30 second timeout
 });
 
-// Add authentication token to all requests
+// Add authentication token and enforce HTTPS
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('🔐 Added auth token to request');
   }
 
-  // Ensure HTTPS for production requests
-  if (config.url && config.url.startsWith('http://')) {
-    config.url = config.url.replace(/^http:\/\//, 'https://');
-    console.log('🔒 Upgraded request URL to HTTPS:', config.url);
+  // Ensure HTTPS - upgrade http to https in baseURL
+  if (config.baseURL && config.baseURL.startsWith('http://')) {
+    const originalURL = config.baseURL;
+    config.baseURL = config.baseURL.replace(/^http:\/\//, 'https://');
+    console.log(`🔒 Upgraded baseURL from ${originalURL} to ${config.baseURL}`);
   }
+
+  const fullURL = (config.baseURL || '') + (config.url || '');
+  console.log(`📡 ${config.method?.toUpperCase()} ${fullURL}`);
 
   return config;
 });

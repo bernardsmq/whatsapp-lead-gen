@@ -1,17 +1,17 @@
 import axios from 'axios';
 
-// Determine API URL based on environment
+// Determine API URL at runtime based on current hostname
 let API_BASE_URL;
 
-if (import.meta.env.DEV) {
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
   // Local development
   API_BASE_URL = 'http://localhost:8000';
 } else {
-  // Production - hardcode to ensure HTTPS
+  // Production - always use HTTPS
   API_BASE_URL = 'https://whatsapp-lead-gen-production.up.railway.app';
 }
 
-console.log('🔗 API_BASE_URL:', API_BASE_URL);
+console.log('API_BASE_URL:', API_BASE_URL, '| Hostname:', window.location.hostname);
 
 const api = axios.create({
   baseURL: API_BASE_URL,

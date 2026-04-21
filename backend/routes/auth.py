@@ -100,6 +100,18 @@ async def get_current_user(user_id: str = Depends(verify_token)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/verify")
+async def verify_token_endpoint(user_id: str = Depends(verify_token)):
+    """Verify if current token is valid"""
+    try:
+        return {
+            "valid": True,
+            "user_id": user_id,
+            "message": "Token is valid"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Token is invalid")
+
 @router.get("/init-admin")
 async def init_admin():
     """Create or reset admin user for first-time setup"""

@@ -8,23 +8,45 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restore from localStorage
+    // Restore from localStorage and verify token is still valid
     const storedToken = localStorage.getItem('token');
     const storedUserId = localStorage.getItem('user_id');
 
-    console.log('🔍 AuthContext init - checking localStorage');
-    console.log('  Token found:', storedToken ? `${storedToken.substring(0, 20)}...` : 'null');
-    console.log('  User ID found:', storedUserId);
-
     if (storedToken && storedUserId) {
-      console.log('✓ Restored auth from localStorage');
-      setToken(storedToken);
-      setUser({ id: storedUserId });
-    } else {
-      console.log('✗ No token/user_id in localStorage');
-    }
+      // Verify token is still valid by calling /auth/verify
+      const verifyToken = async () => {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL || 'https://whatsapp-lead-gen-production.up.railway.app'}/auth/verify`,
+            {
+              headers: {
+                'Authorization': `Bearer ${storedToken}`
+              }
+            }
+          );
 
-    setLoading(false);
+          if (response.ok) {
+            console.log('✓ Token verified - setting auth');
+            setToken(storedToken);
+            setUser({ id: storedUserId });
+          } else {
+            console.log('✗ Token invalid (', response.status, ') - clearing');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user_id');
+          }
+        } catch (err) {
+          console.error('✗ Error verifying token:', err);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user_id');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      verifyToken();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const logout = () => {

@@ -13,7 +13,7 @@ class MetaWhatsAppService:
         if not all([self.phone_id, self.access_token]):
             raise Exception("Missing Meta Cloud API credentials (META_PHONE_ID or META_ACCESS_TOKEN)")
 
-        self.base_url = f"https://graph.instagram.com/v18.0/{self.phone_id}/messages"
+        self.base_url = f"https://graph.facebook.com/v18.0/{self.phone_id}/messages"
 
     def send_template_message(self, phone_number: str, first_name: str) -> Dict:
         """Send WhatsApp template message using Meta Cloud API"""

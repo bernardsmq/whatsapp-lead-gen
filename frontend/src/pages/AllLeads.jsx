@@ -1,45 +1,9 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { leadsAPI } from '../lib/api';
+import { useLeads } from '../hooks/useLeads';
 
 export default function AllLeads() {
   const navigate = useNavigate();
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const fetchLeads = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('📥 AllLeads: Fetching leads...');
-      const response = await leadsAPI.getAll();
-      console.log('✅ AllLeads: Got response:', response);
-      console.log('   Data:', response.data);
-      setLeads(response.data || []);
-    } catch (err) {
-      console.error('❌ AllLeads: Error fetching leads');
-      console.error('   Status:', err.response?.status);
-      console.error('   Data:', err.response?.data);
-      console.error('   Message:', err.message);
-      console.error('   Full error:', err);
-
-      if (err.response?.status === 401) {
-        setError('Not authenticated - redirecting to login...');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1000);
-      } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to fetch leads');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { leads, loading, error } = useLeads();
 
   const handleLeadSelect = (lead) => {
     navigate(`/leads/${lead.id}`);

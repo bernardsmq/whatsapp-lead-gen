@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 
 export const ManualLeadForm = ({ onSuccess }) => {
   const [firstName, setFirstName] = useState('');
@@ -19,20 +19,12 @@ export const ManualLeadForm = ({ onSuccess }) => {
     setSuccess(false);
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/manual-leads/add`,
-        {
-          first_name: firstName,
-          phone: phone,
-          car_interest: carInterest,
-          rental_duration: rentalDuration
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      const response = await api.post('/manual-leads/add', {
+        first_name: firstName,
+        phone: phone,
+        car_interest: carInterest,
+        rental_duration: rentalDuration
+      });
 
       setSuccess(true);
       // response.data contains: { message, lead_id, lead }
@@ -69,17 +61,11 @@ export const ManualLeadForm = ({ onSuccess }) => {
       const token = localStorage.getItem('token');
       console.log('Token available:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
 
-      const url = `${import.meta.env.VITE_API_URL}/workflows/start`;
       const payload = { lead_ids: [leadId] };
 
-      console.log('Request URL:', url);
       console.log('Payload:', payload);
 
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await api.post('/workflows/start', payload);
 
       console.log('✅ API Response:', response.data);
       alert('✅ WhatsApp message sent! Lead will respond on WhatsApp');

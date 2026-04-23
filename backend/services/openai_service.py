@@ -80,9 +80,13 @@ RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation,
 
             # Check what info is already in conversation
             context_lower = context.lower()
-            has_car_type = any(car in context_lower for car in ["bmw", "audi", "mercedes", "tesla", "suv", "sedan", "coupe", "hatchback", "truck", "van", "economy", "luxury", "sports", "g series", "series"])
-            has_dates = any(month in context_lower for month in ["april", "may", "june", "july", "august", "september", "october", "november", "december", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]) or any(word in context_lower for word in ["today", "tomorrow", "week", "weeks", "month", "months", "day", "days"])
-            has_duration = any(word in context_lower for word in ["week", "weeks", "month", "months", "day", "days", "for"])
+            has_car_type = any(car in context_lower for car in ["bmw", "audi", "mercedes", "tesla", "suv", "sedan", "coupe", "hatchback", "truck", "van", "economy", "luxury", "sports", "g series", "series", "range rover", "porsche", "lamborghini"])
+            has_dates = any(month in context_lower for month in ["april", "may", "june", "july", "august", "september", "october", "november", "december", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]) or any(word in context_lower for word in ["today", "tomorrow", "next week", "this week"])
+            has_duration = any(word in context_lower for word in ["week", "weeks", "month", "months", "day", "days", "for "])
+
+            # If we have all 3 pieces of info, close the conversation
+            if has_car_type and has_dates and has_duration:
+                return "Perfect! Let me get you connected with our sales team to finalize everything."
 
             prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
 
@@ -91,22 +95,20 @@ CONVERSATION:
 
 Customer: {lead_message}
 
-WHAT WE ALREADY KNOW:
-- Car type mentioned: {has_car_type}
-- Dates/timeframe mentioned: {has_dates}
-- Duration mentioned: {has_duration}
+WHAT WE NEED:
+- Car type: {has_car_type}
+- Dates: {has_dates}
+- Duration: {has_duration}
 
-DO THIS:
-- Only ask for info we DON'T have yet
-- If they gave dates AND duration, DON'T ask "short-term or long-term" - that's already determined
+RULES:
+- ONLY ask about: car type, rental dates, how long they need it
+- NEVER ask about: pickup location, pickup time, contact info, payment, insurance
+- Sales team handles all that stuff
+- If they ask about pickup/timing, say "Our sales team will handle that"
 - Skip any acknowledgment or recap
 - Keep it 1 short sentence
 - Sound casual like texting a friend
-
-DON'T DO THIS:
-- "I see you said..." (NEVER)
-- "Could you let me know..." (too formal)
-- Recap or acknowledge what they said
+- NEVER say "I see you said", "Could you let me know", or recap what they said
 
 RESPONSE:"""
 

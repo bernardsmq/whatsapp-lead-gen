@@ -128,7 +128,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)
 
         # Check if lead has already been sent to sales guy
-        is_already_handled = lead.get("status") == "qualified" and score in ["hot", "warm"]
+        is_already_handled = lead.get("status") == "sent_to_sales"
 
         # If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         if has_confirmation_word and all_details_present and not is_already_handled:

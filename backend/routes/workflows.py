@@ -5,6 +5,9 @@ from database import supabase
 from auth import verify_token
 import asyncio
 
+if meta_whatsapp_service is None:
+    print("⚠️  WARNING: Meta WhatsApp service not initialized!")
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 @router.post("/start")
@@ -40,6 +43,9 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
 
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")
+
+        if meta_whatsapp_service is None:
+            raise HTTPException(status_code=500, detail="Meta WhatsApp service not initialized. Check META_PHONE_ID and META_ACCESS_TOKEN environment variables.")
 
         print(f"\n=== WORKFLOW START (META CLOUD API) ===")
         print(f"User: {user_id}")

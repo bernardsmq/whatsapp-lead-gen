@@ -71,4 +71,9 @@ class MetaWhatsAppService:
             print(f"❌ Failed to send template message: {str(e)}")
             raise Exception(f"Meta WhatsApp error: {str(e)}")
 
-meta_whatsapp_service = MetaWhatsAppService()
+try:
+    meta_whatsapp_service = MetaWhatsAppService()
+    print("✅ Meta WhatsApp service initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize Meta service: {str(e)}")
+    meta_whatsapp_service = None

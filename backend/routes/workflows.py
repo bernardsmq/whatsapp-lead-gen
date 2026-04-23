@@ -1,12 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict
-from services.meta_whatsapp_service import meta_whatsapp_service
+from services.twilio_whatsapp_service import twilio_whatsapp_service
 from database import supabase
 from auth import verify_token
 import asyncio
-
-if meta_whatsapp_service is None:
-    print("⚠️  WARNING: Meta WhatsApp service not initialized!")
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -44,10 +41,7 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")
 
-        if meta_whatsapp_service is None:
-            raise HTTPException(status_code=500, detail="Meta WhatsApp service not initialized. Check META_PHONE_ID and META_ACCESS_TOKEN environment variables.")
-
-        print(f"\n=== WORKFLOW START (META CLOUD API) ===")
+        print(f"\n=== WORKFLOW START (TWILIO WHATSAPP) ===")
         print(f"User: {user_id}")
         print(f"Sending WhatsApp template to {len(leads)} leads")
 
@@ -62,8 +56,8 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
 
                 print(f"Sending WhatsApp template to {first_name} ({phone})")
 
-                # Send WhatsApp template message via Meta Cloud API
-                meta_whatsapp_service.send_template_message(phone, first_name)
+                # Send WhatsApp template message via Twilio
+                twilio_whatsapp_service.send_template_message(phone, first_name)
 
                 sent_count += 1
                 print(f"✓ Template message sent to {first_name}")

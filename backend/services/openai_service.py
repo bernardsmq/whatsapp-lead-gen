@@ -69,39 +69,50 @@ RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation,
             raise Exception(f"OpenAI error: {str(e)}")
 
     def generate_response(self, lead_name: str, lead_message: str, context: str = "") -> str:
-        """Generate an AI response to send back to the lead"""
+        """Generate a natural, human-like AI response to send back to the lead"""
         try:
-            prompt = f"""You are a sharp car rental agent responding to a customer. Remember the ENTIRE conversation history.
+            # If they just said a greeting, respond with greeting + ask questions
+            greetings = ["hey", "hi", "hello", "yo", "what's up", "sup", "hiya"]
+            message_lower = lead_message.lower().strip()
 
-CONVERSATION HISTORY:
+            if any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10:
+                return "Hey! What kind of car you looking for and when do you need it?"
+
+            prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
+
+CONVERSATION:
 {context}
 
-Customer's latest message: "{lead_message}"
+Customer: {lead_message}
 
-Rules:
-1. Acknowledge SPECIFICALLY what they just said (car model, dates, duration if mentioned)
-2. DO NOT ask about things they already told you - check the history first
-3. ONLY discuss: car preferences, rental dates, duration, special requests (off-roading, luxury, etc)
-4. NEVER ask for: driver's license, payment info, insurance, personal details (sales team handles that)
-5. Check the conversation history - if it has ALL THREE of these: car type, duration, AND dates, ONLY then end with "I'll finalize the details and get back to you shortly!"
-6. If ANY of car type, duration, or dates are MISSING, ask for the missing information
-7. Be short and direct - 2 sentences MAX
-8. No signatures, no formal greetings, no "I'm here to help" fluff
-9. Keep it conversational like texting, not like an email
+DO THIS:
+- Just ask what you need to know
+- Skip any acknowledgment or recap
+- Keep it 1 short sentence
+- Sound casual like texting a friend
 
-Just write the response text, nothing else."""
+DON'T DO THIS:
+- "I see you said..." (NEVER)
+- "Could you let me know..." (too formal)
+- Recap or acknowledge what they said
+- Be polite or formal
+
+You need to know: car type, rental dates, how long they need it.
+Just ask for what's missing. Nothing else.
+
+RESPONSE:"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=150
+                temperature=1.0,
+                max_tokens=60
             )
 
-            return response.choices[0].message.content
+            return response.choices[0].message.content.strip()
 
         except Exception as e:
             print(f"✗ Response generation error: {str(e)}")
-            return "Thanks for your interest! What type of car do you need, and when would you like it for?"
+            return "What kind of car you need?"
 
 openai_service = OpenAIService()

@@ -1,6 +1,7 @@
 import os
 import requests
 import base64
+import json
 from typing import Dict
 
 class TwilioWhatsAppService:
@@ -8,6 +9,7 @@ class TwilioWhatsAppService:
         self.account_sid = os.getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
         self.twilio_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
+        self.template_sid = os.getenv("TWILIO_TEMPLATE_SID", "HXc4ed6b2ba4cb723081afc57303e718f4")
 
         if not all([self.account_sid, self.auth_token, self.twilio_number]):
             raise Exception("Missing Twilio credentials in environment variables")
@@ -16,28 +18,20 @@ class TwilioWhatsAppService:
         self.auth = (self.account_sid, self.auth_token)
 
     def send_template_message(self, phone_number: str, first_name: str) -> Dict:
-        """Send WhatsApp template message to lead with affordable pricing message"""
+        """Send WhatsApp template message using Twilio template"""
         try:
             # Format phone number - Twilio expects E.164 format (with + prefix)
             if not phone_number.startswith("+"):
                 phone_number = "+" + phone_number.replace(" ", "").replace("-", "")
 
-            print(f"Sending WhatsApp template to {first_name} ({phone_number})")
+            print(f"📱 Sending Twilio template to {first_name} ({phone_number})")
 
-            # Message template with lead name
-            message_body = f"""Hi {first_name}! 🚗
-
-We have AFFORDABLE cars available for:
-
-✅ SHORT-TERM (days/weeks)
-✅ LONG-TERM (months)
-
-What's your interest? Just reply with what you need!"""
-
+            # Use template with variable substitution
             data = {
                 "From": f"whatsapp:{self.twilio_number}",
                 "To": f"whatsapp:{phone_number}",
-                "Body": message_body
+                "ContentSid": self.template_sid,
+                "ContentVariables": json.dumps({"1": first_name})
             }
 
             response = requests.post(
@@ -50,11 +44,11 @@ What's your interest? Just reply with what you need!"""
             result = response.json()
             message_sid = result.get("sid", "")
 
-            print(f"✓ Message sent to {first_name}. SID: {message_sid}")
+            print(f"✅ Template message sent to {first_name}. SID: {message_sid}")
             return {"status": "sent", "sid": message_sid}
 
         except Exception as e:
-            print(f"✗ Failed to send WhatsApp message: {str(e)}")
+            print(f"❌ Failed to send template message: {str(e)}")
             raise Exception(f"Twilio WhatsApp error: {str(e)}")
 
     def send_text_message(self, phone_number: str, message_text: str) -> Dict:

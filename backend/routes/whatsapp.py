@@ -82,7 +82,13 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         duration = qualification.get("duration", "not specified")
         dates = qualification.get("dates", "not specified")
         is_confirmation = qualification.get("is_confirmation", False)
-        all_details_present = qualification.get("all_details_present", False)
+
+        # Calculate all_details_present based on extracted values (more reliable than GPT)
+        all_details_present = (
+            car_type != "not specified" and
+            duration != "not specified" and
+            dates != "not specified"
+        )
 
         print(f"Extracted - Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
 

@@ -84,9 +84,9 @@ RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation,
             has_dates = any(month in context_lower for month in ["april", "may", "june", "july", "august", "september", "october", "november", "december", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]) or any(word in context_lower for word in ["today", "tomorrow", "next week", "this week"])
             has_duration = any(word in context_lower for word in ["week", "weeks", "month", "months", "day", "days", "for "])
 
-            # If we have all 3 pieces of info, close the conversation
+            # If we have all 3 pieces of info, ask for confirmation
             if has_car_type and has_dates and has_duration:
-                return "Perfect! Let me get you connected with our sales team to finalize everything."
+                return "Cool! Just to confirm - all that works for you?"
 
             prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
 

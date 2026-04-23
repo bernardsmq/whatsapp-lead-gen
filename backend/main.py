@@ -12,8 +12,8 @@ load_dotenv()
 app = FastAPI(
     title="WhatsApp Lead Gen API",
     description="API for WhatsApp lead generation system",
-    version="1.0.0",
-    redirect_slashes=False  # Disable automatic trailing slash redirects
+    version="2.0.0",
+    redirect_slashes=False  # Disable automatic trailing slash redirects - using Meta Cloud API
 )
 
 # Middleware to handle X-Forwarded-Proto for HTTPS

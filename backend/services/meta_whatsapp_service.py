@@ -5,7 +5,8 @@ from typing import Dict
 class MetaWhatsAppService:
     def __init__(self):
         self.phone_id = os.getenv("META_PHONE_ID", "").strip()
-        self.access_token = os.getenv("META_ACCESS_TOKEN", "").strip()
+        # Remove all whitespace (spaces, newlines, tabs) from access token
+        self.access_token = "".join(os.getenv("META_ACCESS_TOKEN", "").split())
         self.template_name = "lead_inquiry"
         self.language = "en"
 

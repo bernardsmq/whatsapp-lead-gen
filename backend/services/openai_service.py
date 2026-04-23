@@ -76,7 +76,7 @@ RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation,
             message_lower = lead_message.lower().strip()
 
             if any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10:
-                return "Hey! What kind of car you looking for and when do you need it?"
+                return "Hey! You looking for short-term or long-term rental? And what kind of car?"
 
             prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
 
@@ -97,7 +97,7 @@ DON'T DO THIS:
 - Recap or acknowledge what they said
 - Be polite or formal
 
-You need to know: car type, rental dates, how long they need it.
+You need to know: 1) short-term or long-term rental, 2) car type, 3) specific dates/timeframe.
 Just ask for what's missing. Nothing else.
 
 RESPONSE:"""

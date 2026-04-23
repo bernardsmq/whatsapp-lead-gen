@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict
-from services.twilio_whatsapp_service import twilio_whatsapp_service
+from services.meta_whatsapp_service import meta_whatsapp_service
 from database import supabase
 from auth import verify_token
 import asyncio
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 @router.post("/start")
 async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
-    """Send WhatsApp messages to all leads via Twilio"""
+    """Send WhatsApp template messages to all leads via Meta Cloud API"""
     try:
         print(f"\n=== WORKFLOW START REQUEST ===")
         print(f"User: {user_id}")
@@ -41,9 +41,9 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
         if not leads:
             raise HTTPException(status_code=400, detail="No leads provided")
 
-        print(f"\n=== WORKFLOW START (TWILIO) ===")
+        print(f"\n=== WORKFLOW START (META CLOUD API) ===")
         print(f"User: {user_id}")
-        print(f"Sending WhatsApp to {len(leads)} leads")
+        print(f"Sending WhatsApp template to {len(leads)} leads")
 
         # Send WhatsApp message to each lead
         sent_count = 0
@@ -54,13 +54,13 @@ async def start_workflow(data: Dict, user_id: str = Depends(verify_token)):
                 phone = lead.get("phone")
                 first_name = lead.get("first_name")
 
-                print(f"Sending WhatsApp to {first_name} ({phone})")
+                print(f"Sending WhatsApp template to {first_name} ({phone})")
 
-                # Send WhatsApp message via Twilio
-                twilio_whatsapp_service.send_template_message(phone, first_name)
+                # Send WhatsApp template message via Meta Cloud API
+                meta_whatsapp_service.send_template_message(phone, first_name)
 
                 sent_count += 1
-                print(f"✓ Message sent to {first_name}")
+                print(f"✓ Template message sent to {first_name}")
 
             except Exception as e:
                 print(f"✗ Failed for {lead.get('first_name')}: {str(e)}")

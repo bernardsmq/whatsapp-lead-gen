@@ -125,6 +125,10 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         pricing_keywords = ["price", "cost", "how much", "afford", "expensive", "payment", "pay", "rate", "charge", "fee"]
         is_asking_about_pricing = any(word in message_text.lower() for word in pricing_keywords)
 
+        # Check for greetings
+        greetings = ["hey", "hi", "hello", "yo", "sup", "what's up"]
+        is_just_greeting = any(message_text.lower().strip().startswith(g) for g in greetings) and len(message_text.strip()) < 10
+
         # Check for explicit confirmation words to be more reliable
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)
@@ -162,8 +166,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 if dates == "not specified":
                     missing_info.append("dates")
                 ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
-        # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but only once)
-        elif all_details_present and not has_confirmation_word:
+        # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but not for greetings)
+        elif all_details_present and not has_confirmation_word and not is_just_greeting:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"Sending confirmation message")

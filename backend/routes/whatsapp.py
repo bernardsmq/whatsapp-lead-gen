@@ -132,21 +132,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # Check if lead has already been sent to sales guy
         is_already_handled = lead.get("status") == "sent_to_sales"
 
-        # If customer asks about pricing, handle it specially
-        if is_asking_about_pricing:
-            if all_details_present:
-                ai_response = "Great question! Our sales team will provide you with exact pricing. They'll have all your details ready ;)"
-            else:
-                missing_info = []
-                if car_type == "not specified":
-                    missing_info.append("car type")
-                if duration == "not specified":
-                    missing_info.append("duration")
-                if dates == "not specified":
-                    missing_info.append("dates")
-                ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
-        # If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        elif has_confirmation_word and all_details_present and not is_already_handled:
+        # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
+        if has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
@@ -159,7 +146,20 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Closing message with full details
             ai_response = f"You're all set with the {car_type} for {duration} starting {dates}. I'll finalize the details and get back to you shortly!"
-        # If all info collected and not yet confirmed, send confirmation message (but only once)
+        # PRIORITY 2: If customer asks about pricing, handle it specially
+        elif is_asking_about_pricing:
+            if all_details_present:
+                ai_response = "Great question! Our sales team will provide you with exact pricing. They'll have all your details ready ;)"
+            else:
+                missing_info = []
+                if car_type == "not specified":
+                    missing_info.append("car type")
+                if duration == "not specified":
+                    missing_info.append("duration")
+                if dates == "not specified":
+                    missing_info.append("dates")
+                ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
+        # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but only once)
         elif all_details_present and not has_confirmation_word and not is_already_handled:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg

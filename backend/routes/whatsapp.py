@@ -132,8 +132,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # Check if lead has already been sent to sales guy
         is_already_handled = lead.get("status") == "sent_to_sales"
 
+        # If lead already sent to sales guy, only use natural AI responses for follow-up questions
+        if is_already_handled:
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
         # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        if has_confirmation_word and all_details_present and not is_already_handled:
+        elif has_confirmation_word and all_details_present:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
@@ -160,7 +163,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     missing_info.append("dates")
                 ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
         # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but only once)
-        elif all_details_present and not has_confirmation_word and not is_already_handled:
+        elif all_details_present and not has_confirmation_word:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"Sending confirmation message")

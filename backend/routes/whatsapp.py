@@ -121,8 +121,6 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"✓ Lead qualified as {score}")
 
-        all_details_present = qualification.get("all_details_present", False)
-
         # Check for explicit confirmation words to be more reliable
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)

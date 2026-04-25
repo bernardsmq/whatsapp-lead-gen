@@ -31,7 +31,7 @@ class TwilioWhatsAppService:
                 "From": f"whatsapp:{self.twilio_number}",
                 "To": f"whatsapp:{phone_number}",
                 "ContentSid": self.template_sid,
-                "ContentVariables": json.dumps({"1": first_name})
+                "ContentVariables": json.dumps({"name": first_name})
             }
 
             response = requests.post(

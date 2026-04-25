@@ -129,12 +129,20 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         greetings = ["hey", "hi", "hello", "yo", "sup", "what's up"]
         is_just_greeting = any(message_text.lower().strip().startswith(g) for g in greetings) and len(message_text.strip()) < 10
 
+        # Check for words that mean they DON'T want changes
+        no_change_words = ["no different", "same", "keep it", "that's fine", "sounds good", "good with that", "perfect", "good", "fine"]
+        wants_no_change = any(word in message_text.lower() for word in no_change_words)
+
         # Check for explicit confirmation words to be more reliable
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
-        has_confirmation_word = any(word in message_text.lower() for word in confirmation_words)
+        has_confirmation_word = any(word in message_text.lower() for word in confirmation_words) or wants_no_change
 
         # Check if lead has already been sent to sales guy
         is_already_handled = lead.get("status") == "sent_to_sales"
+
+        # Check if we've already shown them the confirmation message (they've seen the booking details once)
+        # If they have all details and have received a confirmation message, any new message is either confirmation or support
+        has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         if is_already_handled:
@@ -167,12 +175,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     missing_info.append("dates")
                 ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
         # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but not for greetings)
-        elif all_details_present and not has_confirmation_word and not is_just_greeting:
+        elif all_details_present and not has_confirmation_word and not is_just_greeting and not has_seen_confirmation:
             confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"Sending confirmation message")
         else:
-            # Lead already handled or new question asked - just respond naturally
+            # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
 
         print(f"AI Response: {ai_response}")

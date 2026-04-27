@@ -208,20 +208,22 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0: Short message with car type but missing dates/duration - ask for missing info
-        is_short_message = len(message_text.strip().split()) <= 3
+        # PRIORITY 0: If car mentioned but missing dates/duration - ask for missing info
+        # The AI already extracted car_type from the message, so if car_type != "not specified" they mentioned a car
         is_missing_details = dates == "not specified" or duration == "not specified"
 
-        if is_short_message and car_type != "not specified" and is_missing_details:
+        if car_type != "not specified" and is_missing_details:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":
-                supabase.table("leads").update({
-                    "score": "cold",
-                    "status": "new_inquiry"
-                }).eq("id", lead_id).execute()
                 qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
                 if qual_resp.data:
                     supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
+
+            # Set status to waiting_for_details so auto-send can track timeout
+            supabase.table("leads").update({
+                "score": score,
+                "status": "waiting_for_details"
+            }).eq("id", lead_id).execute()
 
             # Ask for missing info
             missing = []

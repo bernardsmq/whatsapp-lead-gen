@@ -3,9 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+import requests
+import atexit
 
 # Import routes
-from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads, analytics
+from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads, analytics, auto_send
 
 load_dotenv()
 
@@ -59,6 +62,7 @@ app.include_router(workflows.router)
 app.include_router(whatsapp.router)
 app.include_router(manual_leads.router)
 app.include_router(analytics.router)
+app.include_router(auto_send.router)
 
 @app.get("/")
 async def root():
@@ -67,6 +71,32 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+# Background scheduler for auto-sending leads after timeout
+scheduler = BackgroundScheduler()
+
+def check_lead_timeouts():
+    """Periodically check for leads that need auto-send"""
+    try:
+        requests.post("http://localhost:8000/auto-send/check-timeout")
+    except Exception as e:
+        print(f"Auto-send check error: {e}")
+
+# Schedule the check every 30 seconds
+scheduler.add_job(check_lead_timeouts, "interval", seconds=30, id="lead_timeout_check")
+
+@app.on_event("startup")
+def start_scheduler():
+    scheduler.start()
+    print("✓ Auto-send scheduler started")
+
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    scheduler.shutdown()
+    print("✓ Auto-send scheduler stopped")
+
+# Ensure scheduler stops on exit
+atexit.register(lambda: scheduler.shutdown())
 
 @app.get("/debug/status")
 async def debug_status():

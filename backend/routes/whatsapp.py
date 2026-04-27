@@ -209,8 +209,22 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0A: If all details NOW present, ask for confirmation and prepare to send
-        if all_details_present and score in ["hot", "warm"]:
+        # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
+        if has_confirmation_word and all_details_present and not is_already_handled:
+            sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
+            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
+
+            # Send to sales guy via WhatsApp
+            print(f"Sending lead to sales guy: {sales_msg}")
+            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
+
+            # Mark as handled
+            supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+
+            # Closing message with full details
+            ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
+        # PRIORITY 0A: If all details NOW present but NOT confirming yet, ask for confirmation
+        elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             confirmation_msg = f"Perfect! So you want a {car_type} for {duration} starting {dates}. Correct?"
             ai_response = confirmation_msg
             print(f"All details collected - asking confirmation")
@@ -251,38 +265,19 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
-        # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        elif has_confirmation_word and all_details_present:
-            sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
-            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
-
-            # Send to sales guy via WhatsApp
-            print(f"Sending lead to sales guy: {sales_msg}")
-            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
-
-            # Mark as handled
-            supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
-
-            # Closing message with full details
-            ai_response = f"You're all set with the {car_type} for {duration} starting {dates}. I'll finalize the details and get back to you shortly!"
         # PRIORITY 2: If customer asks about pricing, handle it specially
         elif is_asking_about_pricing:
             if all_details_present:
                 ai_response = "Great question! Our sales team will provide you with exact pricing. They'll have all your details ready ;)"
             else:
                 missing_info = []
-                if car_type == "not specified":
+                if car_type in ["not specified", "not mentioned"]:
                     missing_info.append("car type")
-                if duration == "not specified":
+                if duration in ["not specified", "not mentioned"]:
                     missing_info.append("duration")
-                if dates == "not specified":
+                if dates in ["not specified", "not mentioned"]:
                     missing_info.append("dates")
                 ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
-        # PRIORITY 3: If all info collected and not yet confirmed, send confirmation message (but not for greetings)
-        elif all_details_present and not has_confirmation_word and not is_just_greeting and not has_seen_confirmation:
-            confirmation_msg = f"Just to confirm: {car_type}, for {duration}, {dates}. Correct?"
-            ai_response = confirmation_msg
-            print(f"Sending confirmation message")
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

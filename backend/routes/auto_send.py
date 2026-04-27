@@ -61,6 +61,11 @@ async def check_timeout_leads():
                         car_type = notes.get("car_type", "not specified")
                         duration = notes.get("duration", "not specified")
                         dates = notes.get("dates", "not specified")
+                        # Treat "not mentioned" same as "not specified"
+                        if duration == "not mentioned":
+                            duration = "not specified"
+                        if dates == "not mentioned":
+                            dates = "not specified"
                     except:
                         pass
 

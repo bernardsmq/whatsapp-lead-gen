@@ -148,10 +148,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         is_confirmation = qualification.get("is_confirmation", False)
 
         # Calculate all_details_present based on extracted values (more reliable than GPT)
+        # Check for both "not specified" and "not mentioned" as missing
         all_details_present = (
-            car_type != "not specified" and
-            duration != "not specified" and
-            dates != "not specified"
+            car_type not in ["not specified", "not mentioned"] and
+            duration not in ["not specified", "not mentioned"] and
+            dates not in ["not specified", "not mentioned"]
         )
 
         print(f"Extracted - Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
@@ -210,9 +211,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         # PRIORITY 0: If car mentioned but missing dates/duration - ask for missing info
         # The AI already extracted car_type from the message, so if car_type != "not specified" they mentioned a car
-        is_missing_details = dates == "not specified" or duration == "not specified"
+        is_missing_details = dates in ["not specified", "not mentioned"] or duration in ["not specified", "not mentioned"]
 
-        if car_type != "not specified" and is_missing_details:
+        if car_type not in ["not specified", "not mentioned"] and is_missing_details:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":
                 qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
@@ -227,9 +228,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Ask for missing info
             missing = []
-            if dates == "not specified":
+            if dates in ["not specified", "not mentioned"]:
                 missing.append("when you need it")
-            if duration == "not specified":
+            if duration in ["not specified", "not mentioned"]:
                 missing.append("for how long")
             ai_response = f"Got it! Now I just need to know {' and '.join(missing)}."
         # If customer wants a fresh inquiry with keywords, ask for missing info

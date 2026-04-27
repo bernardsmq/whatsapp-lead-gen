@@ -12,20 +12,22 @@ class OpenAIService:
     def qualify_lead(self, lead_name: str, message: str, conversation_history: str = "") -> Dict:
         """Use GPT to qualify a lead based on their message response"""
         try:
-            prompt = f"""You are a car rental lead qualification expert. Analyze the FULL conversation.
+            prompt = f"""You are a car rental lead qualification expert. Analyze the conversation carefully.
 
 FULL CONVERSATION:
 {conversation_history}
 
 Latest message: "{message}"
 
-EXTRACT these details from the ENTIRE conversation (not just latest message):
-1. car_type - What specific car or car type was mentioned? (search entire history) Examples: "Lamborghini Huracan", "SUV", "economy car"
-2. duration - How long is the rental? (search entire history) Examples: "2 months", "long term", "1 week"
-3. dates - Any specific dates mentioned? (search entire history) Examples: "June 1-15", "today", "not mentioned"
-4. is_confirmation - Is the latest message confirming something? (check if it's "yes", "agree", "sure", "ofc", etc AND there was a confirmation question before it)
-5. all_details_present - Are car_type, duration, AND dates ALL found in the conversation? (true only if ALL three are present)
-6. lead_score - hot/warm/cold based on readiness to book
+IMPORTANT: If the latest message mentions a DIFFERENT car than previous messages, treat it as a FRESH INQUIRY. Only use dates/duration from the latest message for this new car. Do NOT carry over old booking details.
+
+EXTRACT these details:
+1. car_type - What car is mentioned in the LATEST message? (ignore previous bookings) Examples: "Lamborghini Aventador", "Mclaren 520S", "SUV"
+2. duration - How long is the rental mentioned in the LATEST message? (ignore old bookings) Examples: "2 months", "not mentioned"
+3. dates - Specific dates in the LATEST message? (ignore old bookings) Examples: "27 April", "not mentioned"
+4. is_confirmation - Is the latest message confirming something? (check if it's "yes", "agree", "sure", etc)
+5. all_details_present - Does the LATEST message contain car_type, duration, AND dates? (true only if ALL three explicitly mentioned)
+6. lead_score - hot/warm/cold based on latest message urgency
 
 RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation, all_details_present, lead_score"""
 

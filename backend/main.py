@@ -1,18 +1,40 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
-import atexit
 
 # Import routes
 from routes import auth, leads, sheets, dashboard, workflows, whatsapp, manual_leads, analytics, auto_send
 
 load_dotenv()
 
+# Background scheduler for auto-sending leads after timeout
+scheduler = BackgroundScheduler()
+
+def check_lead_timeouts():
+    """Periodically check for leads that need auto-send"""
+    try:
+        requests.post("http://localhost:8000/auto-send/check-timeout")
+    except Exception as e:
+        print(f"Auto-send check error: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    scheduler.add_job(check_lead_timeouts, "interval", seconds=30, id="lead_timeout_check")
+    scheduler.start()
+    print("✓ Auto-send scheduler started")
+    yield
+    # Shutdown
+    scheduler.shutdown()
+    print("✓ Auto-send scheduler stopped")
+
 app = FastAPI(
+    lifespan=lifespan,
     title="WhatsApp Lead Gen API",
     description="API for WhatsApp lead generation system",
     version="2.0.0",
@@ -71,32 +93,6 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
-
-# Background scheduler for auto-sending leads after timeout
-scheduler = BackgroundScheduler()
-
-def check_lead_timeouts():
-    """Periodically check for leads that need auto-send"""
-    try:
-        requests.post("http://localhost:8000/auto-send/check-timeout")
-    except Exception as e:
-        print(f"Auto-send check error: {e}")
-
-# Schedule the check every 30 seconds
-scheduler.add_job(check_lead_timeouts, "interval", seconds=30, id="lead_timeout_check")
-
-@app.on_event("startup")
-def start_scheduler():
-    scheduler.start()
-    print("✓ Auto-send scheduler started")
-
-@app.on_event("shutdown")
-def shutdown_scheduler():
-    scheduler.shutdown()
-    print("✓ Auto-send scheduler stopped")
-
-# Ensure scheduler stops on exit
-atexit.register(lambda: scheduler.shutdown())
 
 @app.get("/debug/status")
 async def debug_status():

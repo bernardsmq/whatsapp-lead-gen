@@ -220,10 +220,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 if qual_resp.data:
                     supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
 
-            # Set status to waiting_for_details so auto-send can track timeout
+            # Update their score, keep status as "qualified" for now
             supabase.table("leads").update({
-                "score": score,
-                "status": "waiting_for_details"
+                "score": score
             }).eq("id", lead_id).execute()
 
             # Ask for missing info

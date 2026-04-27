@@ -12,11 +12,11 @@ async def check_timeout_leads():
     try:
         print("\n=== CHECKING FOR TIMEOUT LEADS ===")
 
-        # Find leads that are waiting for details
-        leads_response = supabase.table("leads").select("*").eq("status", "waiting_for_details").execute()
+        # Find leads that are qualified (asked for details, waiting for response)
+        leads_response = supabase.table("leads").select("*").eq("status", "qualified").execute()
 
         if not leads_response.data:
-            print("No leads waiting for details")
+            print("No leads qualified (waiting for response)")
             return {"checked": 0, "sent": 0}
 
         sent_count = 0
@@ -24,6 +24,10 @@ async def check_timeout_leads():
         timeout_minutes = 2  # Send after 2 minutes of no response
 
         for lead in leads_response.data:
+            # Skip leads already sent to sales
+            if lead.get("status") == "sent_to_sales":
+                continue
+
             lead_id = lead["id"]
             first_name = lead.get("first_name", "Lead")
             phone = lead.get("phone")

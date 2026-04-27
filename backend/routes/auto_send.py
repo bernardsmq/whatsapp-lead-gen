@@ -81,11 +81,17 @@ async def check_timeout_leads():
 
                 twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
 
-                # Mark as sent
-                supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+                # Mark as sent (with error handling since message already sent)
+                try:
+                    supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
 
                 # Notify customer
-                twilio_whatsapp_service.send_text_message(phone, "Thanks! I've sent your info to our sales team. They'll be in touch shortly.")
+                try:
+                    twilio_whatsapp_service.send_text_message(phone, "Thanks! I've sent your info to our sales team. They'll be in touch shortly.")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not notify customer: {e}")
 
                 sent_count += 1
 

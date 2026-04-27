@@ -68,16 +68,44 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             except:
                 previous_car = None
 
+        # Car brands including abbreviations
+        car_brands = {
+            "bmw": "bmw",
+            "audi": "audi",
+            "mercedes": "mercedes",
+            "tesla": "tesla",
+            "porsche": "porsche",
+            "lamborghini": "lamborghini",
+            "lambo": "lamborghini",
+            "ferrari": "ferrari",
+            "jeep": "jeep",
+            "ford": "ford",
+            "chevy": "chevy",
+            "honda": "honda",
+            "toyota": "toyota",
+            "nissan": "nissan",
+            "range rover": "range rover",
+            "bentley": "bentley",
+            "rolls royce": "rolls royce",
+            "bugatti": "bugatti",
+            "maserati": "maserati"
+        }
+
+        message_lower = message_text.lower()
+        mentioned_car = None
+        for car_key, car_name in car_brands.items():
+            if car_key in message_lower:
+                mentioned_car = car_name
+                break
+
         # Check if customer wants a fresh inquiry (different car, new inquiry, etc)
         fresh_inquiry_keywords = ["another car", "different car", "new car", "different", "change car", "i need another", "want another", "looking for another"]
-        wants_fresh_inquiry = any(keyword in message_text.lower() for keyword in fresh_inquiry_keywords)
+        wants_fresh_inquiry = any(keyword in message_lower for keyword in fresh_inquiry_keywords)
 
-        # Also check if they mentioned a different car brand/model
-        car_brands = ["bmw", "audi", "mercedes", "tesla", "porsche", "lamborghini", "ferrari", "jeep", "ford", "chevy", "honda", "toyota", "nissan", "range rover", "bentley", "rolls royce", "bugatti", "maserati"]
-        mentioned_cars = [car.lower() for car in car_brands if car.lower() in message_text.lower()]
-        if mentioned_cars and previous_car and mentioned_cars[0] not in previous_car.lower():
+        # Also trigger fresh inquiry if they mention a car and already have a previous booking
+        if mentioned_car and lead.get("status") == "sent_to_sales":
             wants_fresh_inquiry = True
-            print(f"Different car detected: {mentioned_cars[0]} (was {previous_car})")
+            print(f"Fresh inquiry: mentioned {mentioned_car}")
 
         # If they want a fresh inquiry, reset their status and clear booking details
         if wants_fresh_inquiry and lead.get("status") == "sent_to_sales":
@@ -182,25 +210,19 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         # PRIORITY 0: If customer wants a fresh inquiry, ask for missing info
         if wants_fresh_inquiry:
-            # Check what info they provided with their fresh inquiry
-            new_car_type = "not specified"
-            for car in car_brands:
-                if car.lower() in message_text.lower():
-                    new_car_type = car.lower()
-                    break
+            # Get the car they mentioned (from mentioned_car variable)
+            new_car_type = mentioned_car if mentioned_car else "not specified"
 
             missing_info = []
             if new_car_type == "not specified":
                 missing_info.append("car type")
-            if dates == "not specified":
-                missing_info.append("dates")
-            if duration == "not specified":
-                missing_info.append("how long")
+            missing_info.append("when you need it")
+            missing_info.append("for how long")
 
-            if missing_info:
-                ai_response = f"Got it! Now I just need {' and '.join(missing_info)} for the {new_car_type if new_car_type != 'not specified' else 'car'}."
-            else:
-                ai_response = f"Perfect! So {new_car_type if new_car_type != 'not specified' else 'that car'} for {duration} starting {dates}. Correct?"
+            # Format the response
+            car_text = new_car_type if new_car_type != "not specified" else "that car"
+            missing_text = " and ".join(missing_info)
+            ai_response = f"Got it! Now I just need to know {missing_text}."
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

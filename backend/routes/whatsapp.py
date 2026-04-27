@@ -57,6 +57,24 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"Found lead: {first_name}")
 
+        # Check if customer wants a fresh inquiry (different car, new inquiry, etc)
+        fresh_inquiry_keywords = ["another car", "different car", "new car", "different", "change car", "i need another", "want another", "looking for another"]
+        wants_fresh_inquiry = any(keyword in message_text.lower() for keyword in fresh_inquiry_keywords)
+
+        # If they want a fresh inquiry, reset their status and clear booking details
+        if wants_fresh_inquiry and lead.get("status") == "sent_to_sales":
+            print(f"Fresh inquiry detected for {first_name} - resetting status")
+            supabase.table("leads").update({
+                "score": "cold",
+                "status": "new_inquiry"
+            }).eq("id", lead_id).execute()
+
+            # Clear previous qualification
+            qual_response = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+            if qual_response.data:
+                qual_id = qual_response.data[0]["id"]
+                supabase.table("qualifications").delete().eq("id", qual_id).execute()
+
         # Store conversation message
         supabase.table("conversations").insert({
             "lead_id": lead_id,
@@ -137,15 +155,18 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words) or wants_no_change
 
-        # Check if lead has already been sent to sales guy
-        is_already_handled = lead.get("status") == "sent_to_sales"
+        # Check if lead has already been sent to sales guy (but not if they're requesting a fresh inquiry)
+        is_already_handled = lead.get("status") == "sent_to_sales" and not wants_fresh_inquiry
 
         # Check if we've already shown them the confirmation message (they've seen the booking details once)
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
+        # PRIORITY 0: If customer wants a fresh inquiry, acknowledge and start over
+        if wants_fresh_inquiry:
+            ai_response = "Got it! Let's find the perfect car for you. What type are you looking for now?"
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
-        if is_already_handled:
+        elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
         # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present:

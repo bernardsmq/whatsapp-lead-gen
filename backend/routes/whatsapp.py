@@ -209,29 +209,35 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0: If car mentioned but missing dates/duration - ask for missing info
+        # PRIORITY 0A: If all details NOW present, ask for confirmation and prepare to send
+        if all_details_present and score in ["hot", "warm"]:
+            confirmation_msg = f"Perfect! So you want a {car_type} for {duration} starting {dates}. Correct?"
+            ai_response = confirmation_msg
+            print(f"All details collected - asking confirmation")
+        # PRIORITY 0B: If car mentioned but missing dates/duration - ask for missing info
         # The AI already extracted car_type from the message, so if car_type != "not specified" they mentioned a car
-        is_missing_details = dates in ["not specified", "not mentioned"] or duration in ["not specified", "not mentioned"]
+        elif car_type not in ["not specified", "not mentioned"]:
+            is_missing_details = dates in ["not specified", "not mentioned"] or duration in ["not specified", "not mentioned"]
 
-        if car_type not in ["not specified", "not mentioned"] and is_missing_details:
-            # Reset their lead if they're coming from a previous booking
-            if lead.get("status") == "sent_to_sales":
-                qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
-                if qual_resp.data:
-                    supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
+            if is_missing_details:
+                # Reset their lead if they're coming from a previous booking
+                if lead.get("status") == "sent_to_sales":
+                    qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+                    if qual_resp.data:
+                        supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
 
-            # Update their score, keep status as "qualified" for now
-            supabase.table("leads").update({
-                "score": score
-            }).eq("id", lead_id).execute()
+                # Update their score, keep status as "qualified" for now
+                supabase.table("leads").update({
+                    "score": score
+                }).eq("id", lead_id).execute()
 
-            # Ask for missing info
-            missing = []
-            if dates in ["not specified", "not mentioned"]:
-                missing.append("when you need it")
-            if duration in ["not specified", "not mentioned"]:
-                missing.append("for how long")
-            ai_response = f"Got it! Now I just need to know {' and '.join(missing)}."
+                # Ask for missing info
+                missing = []
+                if dates in ["not specified", "not mentioned"]:
+                    missing.append("when you need it")
+                if duration in ["not specified", "not mentioned"]:
+                    missing.append("for how long")
+                ai_response = f"Got it! Now I just need to know {' and '.join(missing)}."
         # If customer wants a fresh inquiry with keywords, ask for missing info
         elif wants_fresh_inquiry:
             new_car_type = mentioned_car if mentioned_car else "not specified"

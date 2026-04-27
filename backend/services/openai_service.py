@@ -21,15 +21,20 @@ Latest message: "{message}"
 
 IMPORTANT: If the latest message mentions a DIFFERENT car than previous messages, treat it as a FRESH INQUIRY. Only use dates/duration from the latest message for this new car. Do NOT carry over old booking details.
 
-EXTRACT these details:
-1. car_type - What car is mentioned in the LATEST message? (ignore previous bookings) Examples: "Lamborghini Aventador", "Mclaren 520S", "SUV"
-2. duration - How long is the rental mentioned in the LATEST message? (ignore old bookings) Examples: "2 months", "not mentioned"
-3. dates - Specific dates in the LATEST message? (ignore old bookings) Examples: "27 April", "not mentioned"
-4. is_confirmation - Is the latest message confirming something? (check if it's "yes", "agree", "sure", etc)
-5. all_details_present - Does the LATEST message contain car_type, duration, AND dates? (true only if ALL three explicitly mentioned)
-6. lead_score - hot/warm/cold based on latest message urgency
+EXTRACT these details from the LATEST message:
+1. car_type - What car is mentioned? Examples: "M5 F90", "Lamborghini Aventador", "Mclaren 520S"
+2. duration - How long? Look for: "2 days", "1 week", "for X days/weeks/months", "short-term", "long-term". Return "not mentioned" only if truly not stated.
+3. dates - When? Look for: "tomorrow", "next week", "12:00", "starting", "from", "27 April", specific times/dates. Return "not mentioned" only if truly not stated.
+4. is_confirmation - Is latest message confirming? ("yes", "agree", "sure", "correct", "sounds good", etc)
+5. all_details_present - Are ALL THREE (car_type, duration, dates) explicitly mentioned in the LATEST message?
+6. lead_score - hot/warm/cold based on urgency and completion of details
 
-RETURN: Valid JSON only with fields: car_type, duration, dates, is_confirmation, all_details_present, lead_score"""
+Examples:
+- "for 2 days starting tomorrow at 12:00" → duration="2 days", dates="tomorrow at 12:00"
+- "tomorrow afternoon" → dates="tomorrow afternoon" (time mentioned)
+- "I'll be in town next week" → dates="next week"
+
+RETURN: Valid JSON with exactly these fields: car_type, duration, dates, is_confirmation, all_details_present, lead_score"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

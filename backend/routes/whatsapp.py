@@ -180,9 +180,27 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0: If customer wants a fresh inquiry, acknowledge and start over
+        # PRIORITY 0: If customer wants a fresh inquiry, ask for missing info
         if wants_fresh_inquiry:
-            ai_response = "Got it! Let's find the perfect car for you. What type are you looking for now?"
+            # Check what info they provided with their fresh inquiry
+            new_car_type = "not specified"
+            for car in car_brands:
+                if car.lower() in message_text.lower():
+                    new_car_type = car.lower()
+                    break
+
+            missing_info = []
+            if new_car_type == "not specified":
+                missing_info.append("car type")
+            if dates == "not specified":
+                missing_info.append("dates")
+            if duration == "not specified":
+                missing_info.append("how long")
+
+            if missing_info:
+                ai_response = f"Got it! Now I just need {' and '.join(missing_info)} for the {new_car_type if new_car_type != 'not specified' else 'car'}."
+            else:
+                ai_response = f"Perfect! So {new_car_type if new_car_type != 'not specified' else 'that car'} for {duration} starting {dates}. Correct?"
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

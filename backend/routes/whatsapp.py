@@ -208,18 +208,28 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0: If they just mention a car name, ask for dates and duration
-        if mentioned_car and len(message_text.strip().split()) <= 2:  # Simple message like "Lambo" or "Ferrari please"
-            # Reset their lead with the new car type for next message
-            supabase.table("leads").update({
-                "score": "cold",
-                "status": "new_inquiry"
-            }).eq("id", lead_id).execute()
-            # Clear old qualification
-            qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
-            if qual_resp.data:
-                supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
-            ai_response = f"Got it! When do you need the {mentioned_car} and for how long?"
+        # PRIORITY 0: Short message with car type but missing dates/duration - ask for missing info
+        is_short_message = len(message_text.strip().split()) <= 3
+        is_missing_details = dates == "not specified" or duration == "not specified"
+
+        if is_short_message and car_type != "not specified" and is_missing_details:
+            # Reset their lead if they're coming from a previous booking
+            if lead.get("status") == "sent_to_sales":
+                supabase.table("leads").update({
+                    "score": "cold",
+                    "status": "new_inquiry"
+                }).eq("id", lead_id).execute()
+                qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+                if qual_resp.data:
+                    supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
+
+            # Ask for missing info
+            missing = []
+            if dates == "not specified":
+                missing.append("when you need it")
+            if duration == "not specified":
+                missing.append("for how long")
+            ai_response = f"Got it! Now I just need to know {' and '.join(missing)}."
         # If customer wants a fresh inquiry with keywords, ask for missing info
         elif wants_fresh_inquiry:
             new_car_type = mentioned_car if mentioned_car else "not specified"

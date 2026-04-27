@@ -57,9 +57,27 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"Found lead: {first_name}")
 
+        # Get previous car from conversation history if any
+        previous_car = None
+        qual_response = supabase.table("qualifications").select("special_notes").eq("lead_id", lead_id).execute()
+        if qual_response.data and qual_response.data[0].get("special_notes"):
+            import json as json_module
+            try:
+                notes = json_module.loads(qual_response.data[0]["special_notes"])
+                previous_car = notes.get("car_type", "").lower()
+            except:
+                previous_car = None
+
         # Check if customer wants a fresh inquiry (different car, new inquiry, etc)
         fresh_inquiry_keywords = ["another car", "different car", "new car", "different", "change car", "i need another", "want another", "looking for another"]
         wants_fresh_inquiry = any(keyword in message_text.lower() for keyword in fresh_inquiry_keywords)
+
+        # Also check if they mentioned a different car brand/model
+        car_brands = ["bmw", "audi", "mercedes", "tesla", "porsche", "lamborghini", "ferrari", "jeep", "ford", "chevy", "honda", "toyota", "nissan", "range rover", "bentley", "rolls royce", "bugatti", "maserati"]
+        mentioned_cars = [car.lower() for car in car_brands if car.lower() in message_text.lower()]
+        if mentioned_cars and previous_car and mentioned_cars[0] not in previous_car.lower():
+            wants_fresh_inquiry = True
+            print(f"Different car detected: {mentioned_cars[0]} (was {previous_car})")
 
         # If they want a fresh inquiry, reset their status and clear booking details
         if wants_fresh_inquiry and lead.get("status") == "sent_to_sales":

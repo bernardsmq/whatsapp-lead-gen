@@ -218,8 +218,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             print(f"Sending lead to sales guy: {sales_msg}")
             twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
 
-            # Mark as handled
-            supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+            # Mark as handled (with error handling - message was sent successfully)
+            try:
+                supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
+                print(f"✓ Updated lead status to sent_to_sales")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
 
             # Closing message with full details
             ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"

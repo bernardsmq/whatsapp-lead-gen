@@ -25,13 +25,15 @@ def check_lead_timeouts():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    scheduler.add_job(check_lead_timeouts, "interval", seconds=30, id="lead_timeout_check")
-    scheduler.start()
-    print("✓ Auto-send scheduler started")
+    # DISABLED: Auto-send causes spam because status update fails
+    # Only enable if status updates work properly
+    # scheduler.add_job(check_lead_timeouts, "interval", seconds=30, id="lead_timeout_check")
+    # scheduler.start()
+    print("✓ Auto-send scheduler disabled (status update issue)")
     yield
     # Shutdown
-    scheduler.shutdown()
-    print("✓ Auto-send scheduler stopped")
+    # scheduler.shutdown()
+    print("✓ Scheduler stopped")
 
 app = FastAPI(
     lifespan=lifespan,

@@ -195,6 +195,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         greetings = ["hey", "hi", "hello", "yo", "sup", "what's up"]
         is_just_greeting = any(message_text.lower().strip().startswith(g) for g in greetings) and len(message_text.strip()) < 10
 
+        # Check if it's a general question (contains "?")
+        is_asking_question = "?" in message_text
+
         # Check for words that mean they DON'T want changes
         no_change_words = ["no different", "same", "keep it", "that's fine", "sounds good", "good with that", "perfect", "good", "fine"]
         wants_no_change = any(word in message_text.lower() for word in no_change_words)
@@ -233,7 +236,29 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             confirmation_msg = f"Perfect! So you want: Budget {budget}, starting {start_date}, for {rental_duration_type}{'- ' + car_model if car_model not in ['not mentioned'] else ''}. Correct?"
             ai_response = confirmation_msg
             print(f"All details collected - asking confirmation")
-        # PRIORITY 0B: If some details missing, ask for them in order: budget → start_date → rental_duration_type
+        # PRIORITY 0B (NEW): If asking a general question, answer it naturally then continue
+        elif is_asking_question and not is_asking_about_pricing and car_model in ["not mentioned"]:
+            # Answer the question naturally first
+            answer = openai_service.generate_response(first_name, message_text, conversation_history)
+
+            # Then if still missing details, ask for them
+            if not all_details_present:
+                missing = []
+                if budget in ["not mentioned"]:
+                    missing.append("your budget")
+                if start_date in ["not mentioned"]:
+                    missing.append("when you need it")
+                if rental_duration_type in ["not mentioned"]:
+                    missing.append("how long you need it for")
+
+                if missing:
+                    ai_response = f"{answer}\n\nBy the way, can you also tell me {', '.join(missing)}?"
+                else:
+                    ai_response = answer
+            else:
+                ai_response = answer
+            print(f"Answering general question, then asking for missing details if needed")
+        # PRIORITY 0C: If some details missing, ask for them in order: budget → start_date → rental_duration_type
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":

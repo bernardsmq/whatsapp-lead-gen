@@ -22,18 +22,19 @@ Latest message: "{message}"
 EXTRACT these details from the LATEST message:
 1. budget - How much will they spend? Look for: "$100 per day", "5000", "budget-friendly", "premium", "under 100", etc. Return "not mentioned" if not stated.
 2. start_date - When do they need the car? Look for: "tomorrow", "next week", "April 29", "this Friday", specific dates/times. Return "not mentioned" if not stated.
-3. rental_duration_type - How long? Must be exactly "short-term" (less than 1 month) or "long-term" (1+ month). Return "not mentioned" if duration not stated.
+3. rental_duration - How long? Extract the exact number: "5 days", "2 weeks", "3 months", "1 week", etc. Return "not mentioned" if duration not stated. Include the unit (days/weeks/months).
 4. car_model - What car do they want? Extract car TYPES: economy, luxury, sports, SUV, offroad, daily, etc. OR specific brands/models: BMW, Tesla, Mercedes, Lamborghini, BMW M5, Tesla Model 3, etc. Return "not mentioned" ONLY if they said nothing about cars.
 5. is_confirmation - Is latest message confirming previous details? ("yes", "agree", "sure", "correct", "sounds good", etc)
 6. all_details_present - Are the THREE REQUIRED details present: budget, start_date, AND rental_duration_type? (car_model is optional)
 7. lead_score - hot/warm/cold based on urgency and completion of required details
 
 Examples:
-- "I need a car tomorrow for 2 weeks, budget is 100 per day" → start_date="tomorrow", rental_duration_type="long-term" (2 weeks > 1 month check: no, so short-term), budget="100 per day", car_model="not mentioned"
-- "BMW, next week, 5 days, $80/day" → car_model="BMW", start_date="next week", rental_duration_type="short-term", budget="$80/day"
+- "I need a car tomorrow for 2 weeks, budget is 100 per day" → start_date="tomorrow", rental_duration="2 weeks", budget="100 per day", car_model="not mentioned"
+- "BMW, next week, 5 days, $80/day" → car_model="BMW", start_date="next week", rental_duration="5 days", budget="$80/day"
+- "3 months rental" → rental_duration="3 months"
 - "Just say yes to confirm" → is_confirmation=true, other fields from context
 
-RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duration_type, car_model, is_confirmation, all_details_present, lead_score"""
+RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duration, car_model, is_confirmation, all_details_present, lead_score"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -62,7 +63,7 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
                 qualification = {
                     "budget": "not mentioned",
                     "start_date": "not mentioned",
-                    "rental_duration_type": "not mentioned",
+                    "rental_duration": "not mentioned",
                     "car_model": "not mentioned",
                     "is_confirmation": False,
                     "all_details_present": False,

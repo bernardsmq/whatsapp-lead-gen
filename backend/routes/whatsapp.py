@@ -143,19 +143,19 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         score = qualification.get("lead_score", "cold")
         budget = qualification.get("budget", "not mentioned")
         start_date = qualification.get("start_date", "not mentioned")
-        rental_duration_type = qualification.get("rental_duration_type", "not mentioned")
+        rental_duration = qualification.get("rental_duration", "not mentioned")
         car_model = qualification.get("car_model", "not mentioned")
         is_confirmation = qualification.get("is_confirmation", False)
 
         # Calculate all_details_present based on extracted values (more reliable than GPT)
-        # Check for "not mentioned" as missing - need budget, start_date, and rental_duration_type
+        # Check for "not mentioned" as missing - need budget, start_date, and rental_duration
         all_details_present = (
             budget not in ["not mentioned"] and
             start_date not in ["not mentioned"] and
-            rental_duration_type not in ["not mentioned"]
+            rental_duration not in ["not mentioned"]
         )
 
-        print(f"Extracted - Score: {score}, Budget: {budget}, Start Date: {start_date}, Duration Type: {rental_duration_type}, Car: {car_model}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
+        print(f"Extracted - Score: {score}, Budget: {budget}, Start Date: {start_date}, Duration: {rental_duration}, Car: {car_model}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
 
         # Update lead score
         supabase.table("leads").update({
@@ -173,7 +173,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             "special_notes": json.dumps({
                 "budget": budget,
                 "start_date": start_date,
-                "rental_duration_type": rental_duration_type,
+                "rental_duration": rental_duration,
                 "car_model": car_model,
                 "confirmation_sent": False
             })
@@ -237,7 +237,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # PRIORITY 2: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
-            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration_type}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
+            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
             # Send to sales guy via WhatsApp
             print(f"Sending lead to sales guy: {sales_msg}")
@@ -256,11 +256,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             # If car model not mentioned, ask for it before confirmation
             if car_model in ['not mentioned']:
-                ai_response = f"Thank you. Just to confirm - a {rental_duration_type} rental with budget of {budget}, starting {start_date}. What specific car model would you prefer?"
+                ai_response = f"Thank you. Just to confirm - a rental for {rental_duration} with budget of {budget}, starting {start_date}. What specific car model would you prefer?"
                 print(f"All details present - asking for specific car model")
             else:
                 # Car model provided, ask final confirmation
-                confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration_type}. Is everything correct?"
+                confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration}. Is everything correct?"
                 ai_response = confirmation_msg
                 print(f"All details including car model - asking confirmation")
         # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration_type
@@ -296,8 +296,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 ai_response = "Thank you. What would be your budget for the rental?"
             elif start_date in ["not mentioned"] and not already_asked_date:
                 ai_response = "When would you like to start your rental?"
-            elif rental_duration_type in ["not mentioned"] and not already_asked_duration:
-                ai_response = "How long would you need the vehicle for - short-term (less than 1 month) or long-term (1 month or more)?"
+            elif rental_duration in ["not mentioned"] and not already_asked_duration:
+                ai_response = "How many days or months would you need the vehicle for? For example: 5 days, 2 weeks, 1 month, 3 months, etc."
             else:
                 # Don't repeat questions - just acknowledge and move forward
                 if car_model in ["not mentioned"]:
@@ -306,8 +306,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     ai_response = "And what would be your budget?"
                 elif start_date in ["not mentioned"]:
                     ai_response = "When would you need to start the rental?"
-                elif rental_duration_type in ["not mentioned"]:
-                    ai_response = "Would that be short-term or long-term?"
+                elif rental_duration in ["not mentioned"]:
+                    ai_response = "How many days or months would you need it for?"
                 else:
                     ai_response = "Thank you for that information!"
         # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first

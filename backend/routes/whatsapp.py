@@ -296,15 +296,20 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             ai_response = f"Thank you! Your inquiry has been received. Our sales team will contact you shortly with a detailed quote."
         # PRIORITY 3: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
-            # If car model not mentioned, ask for it before confirmation
-            if car_model in ['not mentioned']:
-                ai_response = f"Thank you. Just to confirm - a rental for {rental_duration} with budget of {budget}, starting {start_date}. What specific car model would you prefer?"
+            # Check if car_model is just a category, not a specific model
+            car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
+            is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
+
+            # If car model not mentioned OR just a category, ask for specific model
+            if car_model in ['not mentioned'] or is_just_category:
+                category_text = f"{car_model.upper()}" if is_just_category else "a"
+                ai_response = f"Thank you. You want {category_text}. What specific model? (Like BMW X5, Range Rover, Tesla Model Y, etc.)"
                 print(f"All details present - asking for specific car model")
             else:
-                # Car model provided, ask final confirmation
+                # Car model is specific, ask final confirmation
                 confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration}. Is everything correct?"
                 ai_response = confirmation_msg
-                print(f"All details including car model - asking confirmation")
+                print(f"All details including specific car model - asking confirmation")
         # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
@@ -320,7 +325,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Ask for missing details in priority order: car_model → budget → start_date → rental_duration
             # But check conversation history to avoid re-asking the same thing
-            car_question_keywords = ["what type", "what car", "economy", "luxury", "sports", "suv", "offroad", "daily", "bmw", "tesla", "mercedes", "lamborghini"]
+            car_question_keywords = ["what type", "what car", "economy", "luxury", "sports", "suv", "offroad", "daily", "bmw", "tesla", "mercedes", "lamborghini", "model"]
             budget_question_keywords = ["budget", "how much", "cost", "price", "afford", "$", "per day", "per week"]
             date_question_keywords = ["when", "date", "tomorrow", "next week", "this week", "april", "may", "june"]
             duration_question_keywords = ["how long", "duration", "days", "weeks", "months", "short-term", "long-term"]
@@ -332,8 +337,15 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             already_asked_date = any(kw in conv_lower for kw in date_question_keywords)
             already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
 
-            if car_model in ["not mentioned"] and not already_asked_car:
-                ai_response = "Could you please tell me what type of car you would prefer? We offer economy, luxury, sports, SUV, and offroad vehicles."
+            # Check if car_model is just a category
+            car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
+            is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
+
+            if (car_model in ["not mentioned"] or is_just_category) and not already_asked_car:
+                if is_just_category:
+                    ai_response = f"Great choice on {car_model.upper()}! What specific model? (Like BMW X5, Tesla Model Y, Range Rover, etc.)"
+                else:
+                    ai_response = "Could you please tell me what type of car you would prefer? We offer economy, luxury, sports, SUV, and offroad vehicles."
             elif budget in ["not mentioned"] and not already_asked_budget:
                 ai_response = "Thank you. What would be your budget for the rental?"
             elif start_date in ["not mentioned"] and not already_asked_date:

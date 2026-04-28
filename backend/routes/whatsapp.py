@@ -213,8 +213,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
+        # PRIORITY 0: If asking ANY question (at any stage), answer it first
+        if is_asking_question and not is_asking_about_pricing:
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+            print(f"Answering general question")
         # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        if has_confirmation_word and all_details_present and not is_already_handled:
+        elif has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration_type}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
@@ -231,34 +235,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Closing message with full details
             ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
-        # PRIORITY 0A: If all details NOW present but NOT confirming yet, ask for confirmation
+        # PRIORITY 2A: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             confirmation_msg = f"Perfect! So you want: Budget {budget}, starting {start_date}, for {rental_duration_type}{'- ' + car_model if car_model not in ['not mentioned'] else ''}. Correct?"
             ai_response = confirmation_msg
             print(f"All details collected - asking confirmation")
-        # PRIORITY 0B (NEW): If asking a general question, answer it naturally then continue
-        elif is_asking_question and not is_asking_about_pricing and car_model in ["not mentioned"]:
-            # Answer the question naturally first
-            answer = openai_service.generate_response(first_name, message_text, conversation_history)
-
-            # Then if still missing details, ask for them
-            if not all_details_present:
-                missing = []
-                if budget in ["not mentioned"]:
-                    missing.append("your budget")
-                if start_date in ["not mentioned"]:
-                    missing.append("when you need it")
-                if rental_duration_type in ["not mentioned"]:
-                    missing.append("how long you need it for")
-
-                if missing:
-                    ai_response = f"{answer}\n\nBy the way, can you also tell me {', '.join(missing)}?"
-                else:
-                    ai_response = answer
-            else:
-                ai_response = answer
-            print(f"Answering general question, then asking for missing details if needed")
-        # PRIORITY 0C: If some details missing, ask for them in order: budget → start_date → rental_duration_type
+        # PRIORITY 2B: If some details missing, ask for them in order: budget → start_date → rental_duration_type
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":

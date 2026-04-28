@@ -85,10 +85,10 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             if any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10:
                 return "Hey! What's your budget for the rental?"
 
-            # If they ask about cars we have, ask what TYPE
+            # If they ask about cars we have, tell them we have everything and ask what type they want
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars"]
             if any(word in message_lower for word in car_inquiry_words):
-                return "We have everything - offroading, sports, daily, luxury. But first, what's your budget?"
+                return "We have everything! What type of car are you looking for?"
 
             prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
 

@@ -237,7 +237,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
         # PRIORITY 2A: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
-            confirmation_msg = f"Perfect! So you want: Budget {budget}, starting {start_date}, for {rental_duration_type}{'- ' + car_model if car_model not in ['not mentioned'] else ''}. Correct?"
+            # More natural confirmation phrasing
+            car_part = f", {car_model}" if car_model not in ['not mentioned'] else ""
+            confirmation_msg = f"Cool! So {budget} budget, starting {start_date}, for {rental_duration_type}{car_part} - all good?"
             ai_response = confirmation_msg
             print(f"All details collected - asking confirmation")
         # PRIORITY 2B: If some details missing, ask for them in order: budget → start_date → rental_duration_type
@@ -253,40 +255,49 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 "score": score
             }).eq("id", lead_id).execute()
 
-            # Ask for missing details in priority order
+            # Ask for missing details in priority order - naturally
             missing = []
             if budget in ["not mentioned"]:
-                missing.append("your budget")
+                missing.append("budget")
             if start_date in ["not mentioned"]:
                 missing.append("when you need it")
             if rental_duration_type in ["not mentioned"]:
-                missing.append("how long you need it for")
+                missing.append("how long")
 
             if missing:
-                ai_response = f"Got it! Can you tell me {', '.join(missing)}?"
+                # Vary the phrasing to sound natural
+                if len(missing) == 3:
+                    ai_response = "Cool! Just need to know your budget, when you need it, and how long for?"
+                elif len(missing) == 2:
+                    if "budget" in missing:
+                        ai_response = f"Just need {missing[0]} and {missing[1]}?"
+                    else:
+                        ai_response = f"Need to know {missing[0]} and {missing[1]}?"
+                else:
+                    ai_response = f"One more thing - what's your {missing[0]}?"
             else:
                 # Shouldn't happen, but fallback to asking for car model if needed
-                ai_response = "What car model would you prefer?"
+                ai_response = "What car model you thinking?"
         # If customer wants a fresh inquiry with keywords, ask for missing info
         elif wants_fresh_inquiry:
-            # For fresh inquiry, ask for budget first (standard flow)
-            ai_response = "Got it! What's your budget for the rental?"
+            # For fresh inquiry, ask for budget first (standard flow) - natural phrasing
+            ai_response = "No problem! What's your budget looking like?"
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
         # PRIORITY 2: If customer asks about pricing, handle it specially
         elif is_asking_about_pricing:
             if all_details_present:
-                ai_response = "Great question! Our sales team will provide you with exact pricing. They'll have all your details ready ;)"
+                ai_response = "Good question! Our sales team will send you exact pricing right away"
             else:
                 missing_info = []
                 if budget in ["not mentioned"]:
-                    missing_info.append("budget")
+                    missing_info.append("your budget")
                 if start_date in ["not mentioned"]:
-                    missing_info.append("start date")
+                    missing_info.append("when you need it")
                 if rental_duration_type in ["not mentioned"]:
-                    missing_info.append("rental duration")
-                ai_response = f"Sure! Just tell me {', '.join(missing_info)}, then our sales team will give you exact pricing ;)"
+                    missing_info.append("how long")
+                ai_response = f"For sure! Let me know {', '.join(missing_info)}, then I'll get you the pricing"
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

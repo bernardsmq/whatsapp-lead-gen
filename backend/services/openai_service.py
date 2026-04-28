@@ -99,10 +99,10 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             elif is_greeting and not lead_already_sent:
                 return "Hey! What's your budget for the rental?"
 
-            # If they ask about cars we have, tell them we have everything and ask what type they want
+            # If they ask about cars we have, tell them we have everything and ask for specific model
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars"]
             if any(word in message_lower for word in car_inquiry_words):
-                return "We have everything! What type of car are you looking for?"
+                return "We have everything - BMW, Mercedes, Tesla, Lamborghini, Range Rover, etc. What specific model you looking for?"
 
             context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
 

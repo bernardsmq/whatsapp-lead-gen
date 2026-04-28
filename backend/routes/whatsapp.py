@@ -255,11 +255,15 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
         # PRIORITY 3: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
-            # More natural confirmation phrasing
-            car_part = f", {car_model}" if car_model not in ['not mentioned'] else ""
-            confirmation_msg = f"Cool! So {budget} budget, starting {start_date}, for {rental_duration_type}{car_part} - all good?"
-            ai_response = confirmation_msg
-            print(f"All details collected - asking confirmation")
+            # If car model not mentioned, ask for it before confirmation
+            if car_model in ['not mentioned']:
+                ai_response = f"Cool! So {budget} budget, starting {start_date}, for {rental_duration_type}. What specific car model you want?"
+                print(f"All details present - asking for specific car model")
+            else:
+                # Car model provided, ask final confirmation
+                confirmation_msg = f"Perfect! So {budget} budget, starting {start_date}, for {rental_duration_type}, {car_model} - all good?"
+                ai_response = confirmation_msg
+                print(f"All details including car model - asking confirmation")
         # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration_type
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
@@ -294,8 +298,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 else:
                     ai_response = f"One more thing - what's your {missing[0]}?"
             else:
-                # Shouldn't happen, but fallback to asking for car model if needed
-                ai_response = "What car model you thinking?"
+                # All required details present, ask for specific car model
+                ai_response = "Got it! What specific car model are you looking for? (like BMW M5, Tesla, Mercedes, etc.)"
         # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for missing info
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for budget first (standard flow) - natural phrasing

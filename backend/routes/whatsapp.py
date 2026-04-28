@@ -213,7 +213,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0 (HIGHEST): Simple greeting - just say hi back
+        # PRIORITY 0 (HIGHEST): Simple greeting - ask what car type they need
         if is_just_greeting:
             if is_already_handled:
                 # Just greet naturally, don't ask for anything
@@ -228,8 +228,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 import random
                 ai_response = random.choice(greeting_responses)
             else:
-                # Not yet handled, ask for budget
-                ai_response = "Hey! What's your budget for the rental?"
+                # Not yet handled, ask for CAR TYPE first
+                ai_response = "Hey! What type of car you need? Like BMW, Tesla, Mercedes, etc?"
             print(f"Greeting detected - responding naturally")
         # PRIORITY 1: If asking ANY question (at any stage), answer it
         elif is_asking_question and not is_asking_about_pricing:
@@ -277,33 +277,22 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 "score": score
             }).eq("id", lead_id).execute()
 
-            # Ask for missing details in priority order - naturally
-            missing = []
-            if budget in ["not mentioned"]:
-                missing.append("budget")
-            if start_date in ["not mentioned"]:
-                missing.append("when you need it")
-            if rental_duration_type in ["not mentioned"]:
-                missing.append("how long")
-
-            if missing:
-                # Vary the phrasing to sound natural
-                if len(missing) == 3:
-                    ai_response = "Cool! Just need to know your budget, when you need it, and how long for?"
-                elif len(missing) == 2:
-                    if "budget" in missing:
-                        ai_response = f"Just need {missing[0]} and {missing[1]}?"
-                    else:
-                        ai_response = f"Need to know {missing[0]} and {missing[1]}?"
-                else:
-                    ai_response = f"One more thing - what's your {missing[0]}?"
+            # Ask for missing details in priority order: car_model → budget → start_date → rental_duration_type
+            if car_model in ["not mentioned"]:
+                ai_response = "What type of car you need? (like BMW, Tesla, Mercedes, Lamborghini, etc)"
+            elif budget in ["not mentioned"]:
+                ai_response = "Cool! What's your budget for the rental?"
+            elif start_date in ["not mentioned"]:
+                ai_response = "When do you need it?"
+            elif rental_duration_type in ["not mentioned"]:
+                ai_response = "How long do you need it for - short-term or long-term?"
             else:
-                # All required details present, ask for specific car model
-                ai_response = "Got it! What specific car model are you looking for? (like BMW M5, Tesla, Mercedes, etc.)"
-        # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for missing info
+                # All required details present, shouldn't reach here
+                ai_response = "Got all your info!"
+        # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first
         elif wants_fresh_inquiry:
-            # For fresh inquiry, ask for budget first (standard flow) - natural phrasing
-            ai_response = "No problem! What's your budget looking like?"
+            # For fresh inquiry, ask for car type first (standard flow)
+            ai_response = "No problem! What type of car you need?"
         # PRIORITY 6: If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)

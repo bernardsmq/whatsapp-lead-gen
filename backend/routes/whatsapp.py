@@ -228,8 +228,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 import random
                 ai_response = random.choice(greeting_responses)
             else:
-                # Not yet handled, ask for CAR TYPE first
-                ai_response = "Hey! What type of car you need? Like BMW, Tesla, Mercedes, etc?"
+                # Not yet handled, ask for CAR TYPE first with categories
+                ai_response = "Hey! What type of car you need? We have economy, luxury, sports, SUV, offroad, etc. What you looking for?"
             print(f"Greeting detected - responding naturally")
         # PRIORITY 1: If asking ANY question (at any stage), answer it
         elif is_asking_question and not is_asking_about_pricing:
@@ -279,7 +279,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Ask for missing details in priority order: car_model → budget → start_date → rental_duration_type
             if car_model in ["not mentioned"]:
-                ai_response = "What type of car you need? (like BMW, Tesla, Mercedes, Lamborghini, etc)"
+                ai_response = "What type of car you need? Economy, luxury, sports, SUV, offroad, daily - what's your style?"
             elif budget in ["not mentioned"]:
                 ai_response = "Cool! What's your budget for the rental?"
             elif start_date in ["not mentioned"]:
@@ -292,7 +292,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)
-            ai_response = "No problem! What type of car you need?"
+            ai_response = "No problem! What type of car you need? Economy, luxury, sports, SUV, offroad?"
         # PRIORITY 6: If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)

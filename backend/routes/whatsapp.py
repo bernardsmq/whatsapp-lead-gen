@@ -187,6 +187,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"✓ Lead qualified as {score}")
 
+        # Initialize ai_response to ensure it's always defined
+        ai_response = None
+
         # Check for pricing-related questions
         pricing_keywords = ["price", "cost", "how much", "afford", "expensive", "payment", "pay", "rate", "charge", "fee"]
         is_asking_about_pricing = any(word in message_text.lower() for word in pricing_keywords)
@@ -333,6 +336,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
+
+        # Safety check - make sure we have a response to send
+        if not ai_response:
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
+            print(f"⚠️ No response generated, using fallback AI response")
 
         print(f"AI Response: {ai_response}")
 

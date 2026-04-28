@@ -278,17 +278,39 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             }).eq("id", lead_id).execute()
 
             # Ask for missing details in priority order: car_model → budget → start_date → rental_duration_type
-            if car_model in ["not mentioned"]:
+            # But check conversation history to avoid re-asking the same thing
+            car_question_keywords = ["what type", "what car", "economy", "luxury", "sports", "suv", "offroad", "daily", "bmw", "tesla", "mercedes", "lamborghini"]
+            budget_question_keywords = ["budget", "how much", "cost", "price", "afford", "$", "per day", "per week"]
+            date_question_keywords = ["when", "date", "tomorrow", "next week", "this week", "april", "may", "june"]
+            duration_question_keywords = ["how long", "duration", "days", "weeks", "months", "short-term", "long-term"]
+
+            # Check what we already asked by looking at conversation history
+            conv_lower = conversation_history.lower()
+            already_asked_car = any(kw in conv_lower for kw in car_question_keywords)
+            already_asked_budget = any(kw in conv_lower for kw in budget_question_keywords)
+            already_asked_date = any(kw in conv_lower for kw in date_question_keywords)
+            already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
+
+            if car_model in ["not mentioned"] and not already_asked_car:
                 ai_response = "What type of car you need? Economy, luxury, sports, SUV, offroad, daily - what's your style?"
-            elif budget in ["not mentioned"]:
+            elif budget in ["not mentioned"] and not already_asked_budget:
                 ai_response = "Cool! What's your budget for the rental?"
-            elif start_date in ["not mentioned"]:
+            elif start_date in ["not mentioned"] and not already_asked_date:
                 ai_response = "When do you need it?"
-            elif rental_duration_type in ["not mentioned"]:
+            elif rental_duration_type in ["not mentioned"] and not already_asked_duration:
                 ai_response = "How long do you need it for - short-term or long-term?"
             else:
-                # All required details present, shouldn't reach here
-                ai_response = "Got all your info!"
+                # Don't repeat questions - just acknowledge and move forward
+                if car_model in ["not mentioned"]:
+                    ai_response = "Got it! What about the budget?"
+                elif budget in ["not mentioned"]:
+                    ai_response = "And when do you need it?"
+                elif start_date in ["not mentioned"]:
+                    ai_response = "When's that?"
+                elif rental_duration_type in ["not mentioned"]:
+                    ai_response = "Short-term or long-term?"
+                else:
+                    ai_response = "Sounds good!"
         # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)

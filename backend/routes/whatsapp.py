@@ -57,16 +57,15 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"Found lead: {first_name}")
 
-        # Get previous car from conversation history if any
-        previous_car = None
+        # Get previous rental details from conversation history if any
+        previous_details = {}
         qual_response = supabase.table("qualifications").select("special_notes").eq("lead_id", lead_id).execute()
         if qual_response.data and qual_response.data[0].get("special_notes"):
             import json as json_module
             try:
-                notes = json_module.loads(qual_response.data[0]["special_notes"])
-                previous_car = notes.get("car_type", "").lower()
+                previous_details = json_module.loads(qual_response.data[0]["special_notes"])
             except:
-                previous_car = None
+                previous_details = {}
 
         # Car brands including abbreviations
         car_brands = {
@@ -142,20 +141,21 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         qualification = openai_service.qualify_lead(first_name, message_text, conversation_history)
 
         score = qualification.get("lead_score", "cold")
-        car_type = qualification.get("car_type", "not specified")
-        duration = qualification.get("duration", "not specified")
-        dates = qualification.get("dates", "not specified")
+        budget = qualification.get("budget", "not mentioned")
+        start_date = qualification.get("start_date", "not mentioned")
+        rental_duration_type = qualification.get("rental_duration_type", "not mentioned")
+        car_model = qualification.get("car_model", "not mentioned")
         is_confirmation = qualification.get("is_confirmation", False)
 
         # Calculate all_details_present based on extracted values (more reliable than GPT)
-        # Check for both "not specified" and "not mentioned" as missing
+        # Check for "not mentioned" as missing - need budget, start_date, and rental_duration_type
         all_details_present = (
-            car_type not in ["not specified", "not mentioned"] and
-            duration not in ["not specified", "not mentioned"] and
-            dates not in ["not specified", "not mentioned"]
+            budget not in ["not mentioned"] and
+            start_date not in ["not mentioned"] and
+            rental_duration_type not in ["not mentioned"]
         )
 
-        print(f"Extracted - Score: {score}, Car: {car_type}, Duration: {duration}, Dates: {dates}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
+        print(f"Extracted - Score: {score}, Budget: {budget}, Start Date: {start_date}, Duration Type: {rental_duration_type}, Car: {car_model}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
 
         # Update lead score
         supabase.table("leads").update({
@@ -171,9 +171,10 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             "lead_id": lead_id,
             "completed_criteria": 1 if score in ["hot", "warm"] else 0,
             "special_notes": json.dumps({
-                "car_type": car_type,
-                "duration": duration,
-                "dates": dates,
+                "budget": budget,
+                "start_date": start_date,
+                "rental_duration_type": rental_duration_type,
+                "car_model": car_model,
                 "confirmation_sent": False
             })
         }
@@ -212,7 +213,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         if has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
-            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
+            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration_type}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
             # Send to sales guy via WhatsApp
             print(f"Sending lead to sales guy: {sales_msg}")
@@ -229,43 +230,40 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
         # PRIORITY 0A: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
-            confirmation_msg = f"Perfect! So you want a {car_type} for {duration} starting {dates}. Correct?"
+            confirmation_msg = f"Perfect! So you want: Budget {budget}, starting {start_date}, for {rental_duration_type}{'- ' + car_model if car_model not in ['not mentioned'] else ''}. Correct?"
             ai_response = confirmation_msg
             print(f"All details collected - asking confirmation")
-        # PRIORITY 0B: If car mentioned but missing dates/duration - ask for missing info
-        # The AI already extracted car_type from the message, so if car_type != "not specified" they mentioned a car
-        elif car_type not in ["not specified", "not mentioned"]:
-            is_missing_details = dates in ["not specified", "not mentioned"] or duration in ["not specified", "not mentioned"]
+        # PRIORITY 0B: If some details missing, ask for them in order: budget → start_date → rental_duration_type
+        elif not all_details_present:
+            # Reset their lead if they're coming from a previous booking
+            if lead.get("status") == "sent_to_sales":
+                qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
+                if qual_resp.data:
+                    supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
 
-            if is_missing_details:
-                # Reset their lead if they're coming from a previous booking
-                if lead.get("status") == "sent_to_sales":
-                    qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
-                    if qual_resp.data:
-                        supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
+            # Update their score, keep status as "qualified" for now
+            supabase.table("leads").update({
+                "score": score
+            }).eq("id", lead_id).execute()
 
-                # Update their score, keep status as "qualified" for now
-                supabase.table("leads").update({
-                    "score": score
-                }).eq("id", lead_id).execute()
+            # Ask for missing details in priority order
+            missing = []
+            if budget in ["not mentioned"]:
+                missing.append("your budget")
+            if start_date in ["not mentioned"]:
+                missing.append("when you need it")
+            if rental_duration_type in ["not mentioned"]:
+                missing.append("how long you need it for")
 
-                # Ask for missing info
-                missing = []
-                if dates in ["not specified", "not mentioned"]:
-                    missing.append("when you need it")
-                if duration in ["not specified", "not mentioned"]:
-                    missing.append("for how long")
-                ai_response = f"Got it! Now I just need to know {' and '.join(missing)}."
+            if missing:
+                ai_response = f"Got it! Can you tell me {', '.join(missing)}?"
+            else:
+                # Shouldn't happen, but fallback to asking for car model if needed
+                ai_response = "What car model would you prefer?"
         # If customer wants a fresh inquiry with keywords, ask for missing info
         elif wants_fresh_inquiry:
-            new_car_type = mentioned_car if mentioned_car else "not specified"
-            missing_info = []
-            if new_car_type == "not specified":
-                missing_info.append("car type")
-            missing_info.append("when you need it")
-            missing_info.append("for how long")
-            missing_text = " and ".join(missing_info)
-            ai_response = f"Got it! Now I just need to know {missing_text}."
+            # For fresh inquiry, ask for budget first (standard flow)
+            ai_response = "Got it! What's your budget for the rental?"
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
@@ -275,13 +273,13 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 ai_response = "Great question! Our sales team will provide you with exact pricing. They'll have all your details ready ;)"
             else:
                 missing_info = []
-                if car_type in ["not specified", "not mentioned"]:
-                    missing_info.append("car type")
-                if duration in ["not specified", "not mentioned"]:
-                    missing_info.append("duration")
-                if dates in ["not specified", "not mentioned"]:
-                    missing_info.append("dates")
-                ai_response = f"Please provide me with all the details I need ({', '.join(missing_info)}), so I can forward you to our sales team and they will tell you the prices in a moment ;)"
+                if budget in ["not mentioned"]:
+                    missing_info.append("budget")
+                if start_date in ["not mentioned"]:
+                    missing_info.append("start date")
+                if rental_duration_type in ["not mentioned"]:
+                    missing_info.append("rental duration")
+                ai_response = f"Sure! Just tell me {', '.join(missing_info)}, then our sales team will give you exact pricing ;)"
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history)

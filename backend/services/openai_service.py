@@ -19,22 +19,21 @@ FULL CONVERSATION:
 
 Latest message: "{message}"
 
-IMPORTANT: If the latest message mentions a DIFFERENT car than previous messages, treat it as a FRESH INQUIRY. Only use dates/duration from the latest message for this new car. Do NOT carry over old booking details.
-
 EXTRACT these details from the LATEST message:
-1. car_type - What car is mentioned? Examples: "M5 F90", "Lamborghini Aventador", "Mclaren 520S"
-2. duration - How long? Look for: "2 days", "1 week", "for X days/weeks/months", "short-term", "long-term". Return "not mentioned" only if truly not stated.
-3. dates - When? Look for: "tomorrow", "next week", "12:00", "starting", "from", "27 April", specific times/dates. Return "not mentioned" only if truly not stated.
-4. is_confirmation - Is latest message confirming? ("yes", "agree", "sure", "correct", "sounds good", etc)
-5. all_details_present - Are ALL THREE (car_type, duration, dates) explicitly mentioned in the LATEST message?
-6. lead_score - hot/warm/cold based on urgency and completion of details
+1. budget - How much will they spend? Look for: "$100 per day", "5000", "budget-friendly", "premium", "under 100", etc. Return "not mentioned" if not stated.
+2. start_date - When do they need the car? Look for: "tomorrow", "next week", "April 29", "this Friday", specific dates/times. Return "not mentioned" if not stated.
+3. rental_duration_type - How long? Must be exactly "short-term" (less than 1 month) or "long-term" (1+ month). Return "not mentioned" if duration not stated.
+4. car_model - What specific car? Look for: "BMW M5", "Tesla Model 3", "Lamborghini", car brands. Return "not mentioned" if not stated.
+5. is_confirmation - Is latest message confirming previous details? ("yes", "agree", "sure", "correct", "sounds good", etc)
+6. all_details_present - Are the THREE REQUIRED details present: budget, start_date, AND rental_duration_type? (car_model is optional)
+7. lead_score - hot/warm/cold based on urgency and completion of required details
 
 Examples:
-- "for 2 days starting tomorrow at 12:00" → duration="2 days", dates="tomorrow at 12:00"
-- "tomorrow afternoon" → dates="tomorrow afternoon" (time mentioned)
-- "I'll be in town next week" → dates="next week"
+- "I need a car tomorrow for 2 weeks, budget is 100 per day" → start_date="tomorrow", rental_duration_type="long-term" (2 weeks > 1 month check: no, so short-term), budget="100 per day", car_model="not mentioned"
+- "BMW, next week, 5 days, $80/day" → car_model="BMW", start_date="next week", rental_duration_type="short-term", budget="$80/day"
+- "Just say yes to confirm" → is_confirmation=true, other fields from context
 
-RETURN: Valid JSON with exactly these fields: car_type, duration, dates, is_confirmation, all_details_present, lead_score"""
+RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duration_type, car_model, is_confirmation, all_details_present, lead_score"""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -61,9 +60,10 @@ RETURN: Valid JSON with exactly these fields: car_type, duration, dates, is_conf
                 print(f"JSON parse error: {e}, result: {result}")
                 # If not valid JSON, create a simple response
                 qualification = {
-                    "car_type": "not specified",
-                    "duration": "not specified",
-                    "dates": "not specified",
+                    "budget": "not mentioned",
+                    "start_date": "not mentioned",
+                    "rental_duration_type": "not mentioned",
+                    "car_model": "not mentioned",
                     "is_confirmation": False,
                     "all_details_present": False,
                     "lead_score": "cold"
@@ -83,12 +83,12 @@ RETURN: Valid JSON with exactly these fields: car_type, duration, dates, is_conf
             message_lower = lead_message.lower().strip()
 
             if any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10:
-                return "Hey! What kind of car you looking for?"
+                return "Hey! What's your budget for the rental?"
 
             # If they ask about cars we have, ask what TYPE
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars"]
             if any(word in message_lower for word in car_inquiry_words):
-                return "We have everything - offroading, sports, daily, luxury. What type interests you?"
+                return "We have everything - offroading, sports, daily, luxury. But first, what's your budget?"
 
             prompt = f"""You are a car rental agent texting with a customer. Be direct and natural.
 

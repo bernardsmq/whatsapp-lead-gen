@@ -78,7 +78,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 "phone": phone,
                 "first_name": "Customer",
                 "score": "cold",
-                "status": "new"
+                "status": "qualified"
             }).execute()
 
             if new_lead_response.data:

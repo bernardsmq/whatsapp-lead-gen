@@ -263,7 +263,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration}. Is everything correct?"
                 ai_response = confirmation_msg
                 print(f"All details including car model - asking confirmation")
-        # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration_type
+        # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":
@@ -276,7 +276,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 "score": score
             }).eq("id", lead_id).execute()
 
-            # Ask for missing details in priority order: car_model → budget → start_date → rental_duration_type
+            # Ask for missing details in priority order: car_model → budget → start_date → rental_duration
             # But check conversation history to avoid re-asking the same thing
             car_question_keywords = ["what type", "what car", "economy", "luxury", "sports", "suv", "offroad", "daily", "bmw", "tesla", "mercedes", "lamborghini"]
             budget_question_keywords = ["budget", "how much", "cost", "price", "afford", "$", "per day", "per week"]
@@ -327,7 +327,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     missing_info.append("your budget")
                 if start_date in ["not mentioned"]:
                     missing_info.append("your start date")
-                if rental_duration_type in ["not mentioned"]:
+                if rental_duration in ["not mentioned"]:
                     missing_info.append("the rental duration")
                 ai_response = f"I'd be happy to help with pricing. Could you please provide {' and '.join(missing_info)}?"
         else:

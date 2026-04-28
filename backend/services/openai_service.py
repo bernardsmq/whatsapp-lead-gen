@@ -25,7 +25,7 @@ EXTRACT these details from the LATEST message:
 3. rental_duration - How long? Extract the exact number: "5 days", "2 weeks", "3 months", "1 week", etc. Return "not mentioned" if duration not stated. Include the unit (days/weeks/months).
 4. car_model - What car do they want? Extract car TYPES: economy, luxury, sports, SUV, offroad, daily, etc. OR specific brands/models: BMW, Tesla, Mercedes, Lamborghini, BMW M5, Tesla Model 3, etc. Return "not mentioned" ONLY if they said nothing about cars.
 5. is_confirmation - Is latest message confirming previous details? ("yes", "agree", "sure", "correct", "sounds good", etc)
-6. all_details_present - Are the THREE REQUIRED details present: budget, start_date, AND rental_duration_type? (car_model is optional)
+6. all_details_present - Are the THREE REQUIRED details present: budget, start_date, AND rental_duration? (car_model is optional)
 7. lead_score - hot/warm/cold based on urgency and completion of required details
 
 Examples:

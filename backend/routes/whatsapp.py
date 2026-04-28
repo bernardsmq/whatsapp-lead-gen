@@ -7,6 +7,30 @@ import json
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
+@router.post("/test")
+async def test_endpoint(request: Request):
+    """Test endpoint to verify webhook is working"""
+    try:
+        form_data = await request.form()
+        from_phone = form_data.get("From")
+        message_text = form_data.get("Body")
+
+        print(f"TEST: Received message from {from_phone}: {message_text}")
+
+        if from_phone and message_text:
+            clean_phone = from_phone.replace("whatsapp:", "")
+            # Send simple test response
+            test_response = f"TEST RECEIVED: {message_text}"
+            twilio_whatsapp_service.send_text_message(clean_phone, test_response)
+            print(f"TEST: Sent response to {clean_phone}")
+
+        return {"status": "ok", "test": "working"}
+    except Exception as e:
+        print(f"TEST ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "detail": str(e)}
+
 @router.post("/webhook")
 async def webhook_receive(request: Request):
     """Receive incoming WhatsApp messages from Twilio"""

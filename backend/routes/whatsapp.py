@@ -236,8 +236,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         greetings = ["hey", "hi", "hello", "yo", "sup", "what's up", "hey there", "hi there"]
         is_just_greeting = any(message_text.lower().strip().startswith(g) for g in greetings) and len(message_text.strip()) < 15
 
-        # Check if it's a general question (contains "?")
-        is_asking_question = "?" in message_text
+        # Check if it's a general question (contains "?" OR common question words)
+        question_indicators = ["?", "how", "what", "why", "when", "where", "which", "who", "can you", "could you", "do you", "does", "is", "are", "will you", "would you"]
+        is_asking_question = any(word in message_text.lower() for word in question_indicators)
 
         # Check for words that mean they DON'T want changes
         no_change_words = ["no different", "same", "keep it", "that's fine", "sounds good", "good with that", "perfect", "good", "fine"]

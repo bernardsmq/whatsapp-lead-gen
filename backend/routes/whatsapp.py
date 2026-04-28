@@ -72,14 +72,28 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         response = supabase.table("leads").select("*").eq("phone", phone).execute()
 
         if not response.data:
-            print(f"Lead not found for phone {phone}")
-            return
+            print(f"Lead not found for phone {phone}, creating new lead")
+            # Create a new lead if one doesn't exist
+            new_lead_response = supabase.table("leads").insert({
+                "phone": phone,
+                "first_name": "Customer",
+                "score": "cold",
+                "status": "new"
+            }).execute()
 
-        lead = response.data[0]
-        lead_id = lead["id"]
-        first_name = lead.get("first_name", "Lead")
-
-        print(f"Found lead: {first_name}")
+            if new_lead_response.data:
+                lead = new_lead_response.data[0]
+                lead_id = lead["id"]
+                first_name = "Customer"
+                print(f"✓ Created new lead: {lead_id}")
+            else:
+                print(f"✗ Failed to create lead for {phone}")
+                return
+        else:
+            lead = response.data[0]
+            lead_id = lead["id"]
+            first_name = lead.get("first_name", "Customer")
+            print(f"Found lead: {first_name}")
 
         # Get previous rental details from conversation history if any
         previous_details = {}

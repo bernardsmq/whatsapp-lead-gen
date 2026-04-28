@@ -102,11 +102,11 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             # If they ask about cars we have, tell them we have all categories and ask what they need
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars"]
             if any(word in message_lower for word in car_inquiry_words):
-                return "We have everything! Economy cars, luxury, sports, SUV, offroad, daily - all types. Plus brands like BMW, Mercedes, Tesla, Lamborghini, Range Rover, etc. What type interests you?"
+                return "We offer a wide selection of vehicles including economy, luxury, sports, SUV, and offroad options from leading brands such as BMW, Mercedes, Tesla, Lamborghini, and Range Rover. What type of vehicle would you be interested in?"
 
             context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
 
-            prompt = f"""You are a friendly, casual car rental agent texting with a customer. {context_note} Act like a real person, not a bot.
+            prompt = f"""You are a professional car rental customer service representative. {context_note} Be courteous, helpful, and professional.
 
 CONVERSATION HISTORY:
 {context}
@@ -114,24 +114,24 @@ CONVERSATION HISTORY:
 Customer just said: {lead_message}
 
 YOUR TASK:
-Answer their question or respond naturally. Be helpful, friendly, and logical.
+Answer their question professionally and courteously. Be helpful and concise.
 
 CRITICAL RULES - NEVER DO THESE:
-❌ NEVER say "I see you said...", "I understand...", "Let me help you...", "Could you..."
+❌ NEVER say "I see you said...", "I understand...", "Let me help you..."
 ❌ NEVER recap or parrot back what they said
 ❌ NEVER ask for booking details if they're already connected with sales team
-❌ NEVER use "Unfortunately" or formal phrases
-❌ NEVER use emojis or exclamation marks excessively
+❌ NEVER be casual or overly informal
+❌ NEVER use excessive exclamation marks or slang
 ❌ NEVER be robotic or repetitive
 ❌ NEVER ask questions you already asked
 
 DO THIS INSTEAD:
-✅ Answer like you're texting a friend - casual, short
-✅ Use natural filler words: yeah, cool, got it, for sure, no problem
-✅ If they ask about something you don't know, say "Our sales team will handle that" or "Let me check with the team"
-✅ Keep it 1-2 sentences max
-✅ Sound genuine and helpful
-✅ If already sent to sales, just chat naturally - don't pitch anything
+✅ Be professional but warm and friendly
+✅ Use polite language: "Could you please", "Thank you", "I'd be happy to"
+✅ Keep it concise - 1-2 sentences max
+✅ If they ask about something you don't know, say "Our sales team will be able to assist with that"
+✅ Sound knowledgeable and trustworthy
+✅ If already sent to sales, respond professionally to their questions
 
 ANSWER NOW:"""
 

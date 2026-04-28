@@ -216,21 +216,20 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # PRIORITY 0 (HIGHEST): Simple greeting - ask what car type they need
         if is_just_greeting:
             if is_already_handled:
-                # Just greet naturally, don't ask for anything
+                # Just greet professionally, don't ask for anything
                 greeting_responses = [
-                    "Hey! What's up?",
-                    "Hey there!",
-                    "Yo!",
-                    "What's going on?",
-                    "Sup! How can I help?",
-                    "Hey! 👋"
+                    "Hello! How can I assist you?",
+                    "Hi there! What can I help with?",
+                    "Good to hear from you! How may I help?",
+                    "Hello! Is there anything else I can help with?",
+                    "Hi! How are you doing today?"
                 ]
                 import random
                 ai_response = random.choice(greeting_responses)
             else:
                 # Not yet handled, ask for CAR TYPE first with categories
-                ai_response = "Hey! What type of car you need? We have economy, luxury, sports, SUV, offroad, etc. What you looking for?"
-            print(f"Greeting detected - responding naturally")
+                ai_response = "Hello! Welcome to our car rental service. What type of car would you like? We offer economy, luxury, sports, SUV, and offroad options."
+            print(f"Greeting detected - responding professionally")
         # PRIORITY 1: If asking ANY question (at any stage), answer it
         elif is_asking_question and not is_asking_about_pricing:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
@@ -252,16 +251,16 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
 
             # Closing message with full details
-            ai_response = f"Perfect! Our sales team will be in touch with you within minutes ;)"
+            ai_response = f"Thank you! Your inquiry has been received. Our sales team will contact you shortly with a detailed quote."
         # PRIORITY 3: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             # If car model not mentioned, ask for it before confirmation
             if car_model in ['not mentioned']:
-                ai_response = f"Cool! So {budget} budget, starting {start_date}, for {rental_duration_type}. What specific car model you want?"
+                ai_response = f"Thank you. Just to confirm - a {rental_duration_type} rental with budget of {budget}, starting {start_date}. What specific car model would you prefer?"
                 print(f"All details present - asking for specific car model")
             else:
                 # Car model provided, ask final confirmation
-                confirmation_msg = f"Perfect! So {budget} budget, starting {start_date}, for {rental_duration_type}, {car_model} - all good?"
+                confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration_type}. Is everything correct?"
                 ai_response = confirmation_msg
                 print(f"All details including car model - asking confirmation")
         # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration_type
@@ -292,45 +291,45 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
 
             if car_model in ["not mentioned"] and not already_asked_car:
-                ai_response = "What type of car you need? Economy, luxury, sports, SUV, offroad, daily - what's your style?"
+                ai_response = "Could you please tell me what type of car you would prefer? We offer economy, luxury, sports, SUV, and offroad vehicles."
             elif budget in ["not mentioned"] and not already_asked_budget:
-                ai_response = "Cool! What's your budget for the rental?"
+                ai_response = "Thank you. What would be your budget for the rental?"
             elif start_date in ["not mentioned"] and not already_asked_date:
-                ai_response = "When do you need it?"
+                ai_response = "When would you like to start your rental?"
             elif rental_duration_type in ["not mentioned"] and not already_asked_duration:
-                ai_response = "How long do you need it for - short-term or long-term?"
+                ai_response = "How long would you need the vehicle for - short-term (less than 1 month) or long-term (1 month or more)?"
             else:
                 # Don't repeat questions - just acknowledge and move forward
                 if car_model in ["not mentioned"]:
-                    ai_response = "Got it! What about the budget?"
+                    ai_response = "Thank you. What type of vehicle would you prefer?"
                 elif budget in ["not mentioned"]:
-                    ai_response = "And when do you need it?"
+                    ai_response = "And what would be your budget?"
                 elif start_date in ["not mentioned"]:
-                    ai_response = "When's that?"
+                    ai_response = "When would you need to start the rental?"
                 elif rental_duration_type in ["not mentioned"]:
-                    ai_response = "Short-term or long-term?"
+                    ai_response = "Would that be short-term or long-term?"
                 else:
-                    ai_response = "Sounds good!"
+                    ai_response = "Thank you for that information!"
         # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)
-            ai_response = "No problem! What type of car you need? Economy, luxury, sports, SUV, offroad?"
+            ai_response = "No problem. I'd be happy to help with a new inquiry. What type of vehicle would you prefer?"
         # PRIORITY 6: If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
         # PRIORITY 7: If customer asks about pricing, handle it specially
         elif is_asking_about_pricing:
             if all_details_present:
-                ai_response = "Good question! Our sales team will send you exact pricing right away"
+                ai_response = "Thank you for your interest. Our sales team will provide you with a detailed pricing quote right away."
             else:
                 missing_info = []
                 if budget in ["not mentioned"]:
                     missing_info.append("your budget")
                 if start_date in ["not mentioned"]:
-                    missing_info.append("when you need it")
+                    missing_info.append("your start date")
                 if rental_duration_type in ["not mentioned"]:
-                    missing_info.append("how long")
-                ai_response = f"For sure! Let me know {', '.join(missing_info)}, then I'll get you the pricing"
+                    missing_info.append("the rental duration")
+                ai_response = f"I'd be happy to help with pricing. Could you please provide {' and '.join(missing_info)}?"
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)

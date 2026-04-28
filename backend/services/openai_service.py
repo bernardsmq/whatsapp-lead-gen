@@ -75,14 +75,28 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             print(f"✗ OpenAI qualification error: {str(e)}")
             raise Exception(f"OpenAI error: {str(e)}")
 
-    def generate_response(self, lead_name: str, lead_message: str, context: str = "") -> str:
+    def generate_response(self, lead_name: str, lead_message: str, context: str = "", lead_already_sent: bool = False) -> str:
         """Generate a natural, human-like AI response to send back to the lead"""
         try:
-            # If they just said a greeting, respond with greeting + ask questions
-            greetings = ["hey", "hi", "hello", "yo", "what's up", "sup", "hiya"]
             message_lower = lead_message.lower().strip()
 
-            if any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10:
+            # If they just said a greeting
+            greetings = ["hey", "hi", "hello", "yo", "what's up", "sup", "hiya"]
+            is_greeting = any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10
+
+            # If greeting AND already sent to sales, respond naturally, don't ask for budget again
+            if is_greeting and lead_already_sent:
+                # Just greet them back naturally
+                greeting_responses = [
+                    "Hey! What's up?",
+                    "Hey there!",
+                    "Yo! 👋",
+                    "What's going on?",
+                    "Sup! How can I help?"
+                ]
+                import random
+                return random.choice(greeting_responses)
+            elif is_greeting and not lead_already_sent:
                 return "Hey! What's your budget for the rental?"
 
             # If they ask about cars we have, tell them we have everything and ask what type they want
@@ -90,7 +104,9 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             if any(word in message_lower for word in car_inquiry_words):
                 return "We have everything! What type of car are you looking for?"
 
-            prompt = f"""You are a friendly, casual car rental agent texting with a customer. Act like a real person, not a bot.
+            context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
+
+            prompt = f"""You are a friendly, casual car rental agent texting with a customer. {context_note} Act like a real person, not a bot.
 
 CONVERSATION HISTORY:
 {context}
@@ -98,22 +114,24 @@ CONVERSATION HISTORY:
 Customer just said: {lead_message}
 
 YOUR TASK:
-Answer their question naturally and conversationally. Be helpful, friendly, and real.
+Answer their question or respond naturally. Be helpful, friendly, and logical.
 
 CRITICAL RULES - NEVER DO THESE:
 ❌ NEVER say "I see you said...", "I understand...", "Let me help you...", "Could you..."
 ❌ NEVER recap or parrot back what they said
-❌ NEVER ask for confirmation unless they ask
+❌ NEVER ask for booking details if they're already connected with sales team
 ❌ NEVER use "Unfortunately" or formal phrases
 ❌ NEVER use emojis or exclamation marks excessively
 ❌ NEVER be robotic or repetitive
+❌ NEVER ask questions you already asked
 
 DO THIS INSTEAD:
 ✅ Answer like you're texting a friend - casual, short
 ✅ Use natural filler words: yeah, cool, got it, for sure, no problem
-✅ If you don't have an answer, say something like "That's a good question, let me find out" or ask our sales team
+✅ If they ask about something you don't know, say "Our sales team will handle that" or "Let me check with the team"
 ✅ Keep it 1-2 sentences max
 ✅ Sound genuine and helpful
+✅ If already sent to sales, just chat naturally - don't pitch anything
 
 ANSWER NOW:"""
 

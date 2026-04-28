@@ -215,7 +215,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         # PRIORITY 0: If asking ANY question (at any stage), answer it first
         if is_asking_question and not is_asking_about_pricing:
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
             print(f"Answering general question")
         # PRIORITY 1: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present and not is_already_handled:
@@ -284,7 +284,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             ai_response = "No problem! What's your budget looking like?"
         # If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
         # PRIORITY 2: If customer asks about pricing, handle it specially
         elif is_asking_about_pricing:
             if all_details_present:
@@ -300,7 +300,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 ai_response = f"For sure! Let me know {', '.join(missing_info)}, then I'll get you the pricing"
         else:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history)
+            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
 
         print(f"AI Response: {ai_response}")
 

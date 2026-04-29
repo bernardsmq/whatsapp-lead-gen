@@ -21,6 +21,9 @@ class TwilioWhatsAppService:
         """Send WhatsApp template message using Twilio template"""
         try:
             # Format phone number - Twilio expects E.164 format (with + prefix)
+            # Convert to string first in case it's an integer
+            phone_number = str(phone_number).strip()
+
             if not phone_number.startswith("+"):
                 phone_number = "+" + phone_number.replace(" ", "").replace("-", "")
 
@@ -55,6 +58,9 @@ class TwilioWhatsAppService:
         """Send plain text WhatsApp message"""
         try:
             # Format phone number
+            # Convert to string first in case it's an integer
+            phone_number = str(phone_number).strip()
+
             if not phone_number.startswith("+"):
                 phone_number = "+" + phone_number.replace(" ", "").replace("-", "")
 

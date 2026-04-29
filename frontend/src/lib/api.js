@@ -111,4 +111,8 @@ export const analyticsAPI = {
   getRecentActivity: (limit = 20) => api.get('/analytics/activity/recent', { params: { limit } }),
 };
 
+export const whatsappAPI = {
+  sendBulk: (leads) => api.post('/whatsapp/send-bulk', { leads }),
+};
+
 export default api;

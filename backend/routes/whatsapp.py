@@ -1,11 +1,19 @@
-from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi import APIRouter, HTTPException, Request, Form, Depends
 from services.twilio_whatsapp_service import twilio_whatsapp_service
 from services.openai_service import openai_service
 from database import supabase
 import os
 import json
 
+from pydantic import BaseModel
+from typing import List
+from auth import verify_token
+
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
+
+class BulkSendRequest(BaseModel):
+    """Request model for bulk sending WhatsApp messages"""
+    leads: List[dict]  # List of {name, phone} objects
 
 @router.post("/test")
 async def test_endpoint(request: Request):
@@ -411,3 +419,70 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         print(f"✗ Error processing message: {str(e)}")
         import traceback
         traceback.print_exc()
+
+
+@router.post("/send-bulk")
+async def send_bulk_messages(request: BulkSendRequest, user_id: str = Depends(verify_token)):
+    """Send WhatsApp template messages to multiple leads"""
+    try:
+        print(f"\n=== BULK SEND START ===")
+        print(f"User ID: {user_id}")
+        print(f"Sending to {len(request.leads)} leads")
+
+        results = []
+
+        for idx, lead in enumerate(request.leads):
+            try:
+                name = lead.get("name", "Customer")
+                phone = lead.get("phone", "")
+
+                if not phone:
+                    results.append({
+                        "name": name,
+                        "phone": phone,
+                        "status": "failed",
+                        "error": "Missing phone number"
+                    })
+                    continue
+
+                print(f"[{idx + 1}/{len(request.leads)}] Sending to {name} ({phone})")
+
+                # Send template message
+                send_result = twilio_whatsapp_service.send_template_message(phone, name)
+
+                results.append({
+                    "name": name,
+                    "phone": phone,
+                    "status": "sent",
+                    "sid": send_result.get("sid")
+                })
+
+            except Exception as e:
+                print(f"Failed to send to {lead.get('name')}: {str(e)}")
+                results.append({
+                    "name": lead.get("name", "Unknown"),
+                    "phone": lead.get("phone", ""),
+                    "status": "failed",
+                    "error": str(e)
+                })
+
+        # Count successes and failures
+        sent_count = sum(1 for r in results if r["status"] == "sent")
+        failed_count = sum(1 for r in results if r["status"] == "failed")
+
+        print(f"=== BULK SEND COMPLETE ===")
+        print(f"Sent: {sent_count}, Failed: {failed_count}\n")
+
+        return {
+            "message": "Bulk send completed",
+            "total": len(request.leads),
+            "sent": sent_count,
+            "failed": failed_count,
+            "results": results
+        }
+
+    except Exception as e:
+        print(f"✗ Bulk send error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

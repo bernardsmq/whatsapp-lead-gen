@@ -95,11 +95,30 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
             "processed_count": len(leads_data)
         }).eq("id", batch_id).execute()
 
+        # Filter leads to only include name and phone for preview
+        preview_leads = []
+        for lead in leads_data:
+            first_name = lead.get("First Name") or lead.get("first_name")
+            if not first_name and lead.get("Name"):
+                first_name = lead.get("Name").split()[0]
+                last_name = " ".join(lead.get("Name").split()[1:]) if len(lead.get("Name").split()) > 1 else ""
+            else:
+                last_name = lead.get("Last Name") or ""
+
+            full_name = f"{first_name} {last_name}".strip() if first_name else "Unknown"
+            phone = lead.get("Mobile No") or lead.get("phone") or ""
+
+            if phone:  # Only include if has phone
+                preview_leads.append({
+                    "name": full_name,
+                    "phone": phone
+                })
+
         result = {
             "message": "Sheet uploaded successfully",
             "batch_id": batch_id,
             "leads_processed": len(leads_data),
-            "leads": leads_data  # Return the actual lead data so frontend can display it
+            "leads": preview_leads  # Return filtered data for preview
         }
         print(f"=== UPLOAD SUCCESS ===")
         print(f"Result: {result}\n")

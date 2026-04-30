@@ -236,9 +236,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # Initialize ai_response to ensure it's always defined
         ai_response = None
 
-        # Check for pricing-related questions
+        # Check for pricing-related questions (but only if NOT stating a duration with it)
+        # "how much is it for 24H?" is not a pricing question - it's a duration extraction
         pricing_keywords = ["price", "cost", "how much", "afford", "expensive", "payment", "pay", "rate", "charge", "fee"]
-        is_asking_about_pricing = any(word in message_text.lower() for word in pricing_keywords)
+        duration_indicators = ["h", "hours", "day", "days", "week", "weeks", "month", "months"]
+        is_asking_about_pricing = any(word in message_text.lower() for word in pricing_keywords) and not any(word in message_text.lower() for word in duration_indicators)
 
         # Check for simple greetings FIRST
         greetings = ["hey", "hi", "hello", "yo", "sup", "what's up", "hey there", "hi there"]
@@ -345,6 +347,10 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             already_asked_date = any(kw in conv_lower for kw in date_question_keywords)
             already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
 
+            # Check if the latest message is clearly stating a price (like "600$" or "$600")
+            message_lower = message_text.lower().strip()
+            is_price_statement = any(c.isdigit() for c in message_lower) and ("$" in message_lower or "aed" in message_lower or "dhs" in message_lower)
+
             # Check if car_model is just a category
             car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
             is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
@@ -354,7 +360,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     ai_response = f"Great choice on {car_model.upper()}! What specific model? (Like BMW X5, Tesla Model Y, Range Rover, etc.)"
                 else:
                     ai_response = "Could you please tell me what type of car you would prefer? We offer economy, luxury, sports, SUV, and offroad vehicles."
-            elif budget in ["not mentioned"] and not already_asked_budget:
+            elif budget in ["not mentioned"] and not already_asked_budget and not is_price_statement:
                 ai_response = "Thank you. What would be your budget for the rental?"
             elif start_date in ["not mentioned"] and not already_asked_date:
                 ai_response = "When would you like to start your rental?"
@@ -364,7 +370,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 # Don't repeat questions - just acknowledge and move forward
                 if car_model in ["not mentioned"]:
                     ai_response = "Thank you. What type of vehicle would you prefer?"
-                elif budget in ["not mentioned"]:
+                elif budget in ["not mentioned"] and not is_price_statement:
                     ai_response = "And what would be your budget?"
                 elif start_date in ["not mentioned"]:
                     ai_response = "When would you need to start the rental?"

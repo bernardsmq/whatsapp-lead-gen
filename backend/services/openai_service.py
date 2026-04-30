@@ -104,8 +104,15 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars", "you have"]
 
             if any(word in message_lower for word in car_inquiry_words):
-                # Check what type of car they're interested in
-                luxury_keywords = ["luxury", "premium", "high-end", "expensive", "rolls", "bentley", "mercedes amg", "bmw m", "porsche"]
+                # First check if they're asking for a SPECIFIC CAR BRAND
+                specific_brands = ["rolls royce", "bentley", "porsche", "tesla", "bmw", "mercedes", "audi", "lamborghini", "ferrari", "jaguar", "range rover"]
+
+                if any(brand in message_lower for brand in specific_brands):
+                    # Specific brand - just confirm we have it
+                    return "Yes, we have it! When do you need it?"
+
+                # Otherwise check what TYPE of car they're interested in
+                luxury_keywords = ["luxury", "premium", "high-end", "expensive"]
                 sport_keywords = ["sport", "sports", "performance", "fast", "race"]
                 suv_keywords = ["suv", "4x4", "jeep", "offroad", "adventure"]
                 economy_keywords = ["budget", "cheap", "economical", "affordable", "economy"]

@@ -360,8 +360,12 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Mark as handled (with error handling - message was sent successfully)
             try:
-                supabase.table("leads").update({"status": "sent_to_sales"}).eq("id", lead_id).execute()
-                print(f"✓ Updated lead status to sent_to_sales")
+                from datetime import datetime
+                supabase.table("leads").update({
+                    "status": "sent_to_sales",
+                    "sent_to_sales_at": datetime.utcnow().isoformat()
+                }).eq("id", lead_id).execute()
+                print(f"✓ Updated lead status to sent_to_sales with timestamp")
             except Exception as e:
                 print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
 
@@ -445,9 +449,37 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)
             ai_response = "No problem. I'd be happy to help with a new inquiry. What type of vehicle would you prefer?"
-        # PRIORITY 9: If lead already sent to sales guy, only use natural AI responses for follow-up questions
+        # PRIORITY 9: If lead already sent to sales guy, check time and respond accordingly
         elif is_already_handled:
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
+            # Check how long ago they were sent to sales
+            from datetime import datetime
+            try:
+                sent_to_sales_time = lead.get("sent_to_sales_at")
+                if sent_to_sales_time:
+                    # Parse the timestamp
+                    if isinstance(sent_to_sales_time, str):
+                        sent_time = datetime.fromisoformat(sent_to_sales_time.replace('Z', '+00:00'))
+                    else:
+                        sent_time = sent_to_sales_time
+
+                    now = datetime.utcnow().replace(tzinfo=None)
+                    sent_time_clean = sent_time.replace(tzinfo=None) if sent_time.tzinfo else sent_time
+                    time_diff = (now - sent_time_clean).total_seconds() / 60  # minutes
+
+                    if time_diff < 8:
+                        # Within 8 minutes - be reassuring, don't send apology
+                        ai_response = "Our sales team has received your inquiry, they will be soon in touch with you ;)"
+                        print(f"Sent to sales < 8 min ago ({time_diff:.1f} min) - reassurance response")
+                    else:
+                        # After 8 minutes - acknowledge delay and provide phone number
+                        ai_response = "Only the Sales team can proceed with payments and booking. My apologies if they still haven't reached out to you, you can text them to this number: +971 58 570 2655"
+                        print(f"Sent to sales {time_diff:.1f} min ago - apology response with phone")
+                else:
+                    # No timestamp, use default response
+                    ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
+            except Exception as e:
+                print(f"Error checking sent_to_sales timestamp: {e}")
+                ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
         # PRIORITY 10: Fallback - use AI for any other response
         elif is_asking_about_pricing:
             if all_details_present:

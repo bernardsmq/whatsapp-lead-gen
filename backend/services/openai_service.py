@@ -104,33 +104,28 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars", "you have"]
 
             if any(word in message_lower for word in car_inquiry_words):
-                # First check if they're asking for a SPECIFIC CAR BRAND
-                specific_brands = ["rolls royce", "bentley", "porsche", "tesla", "bmw", "mercedes", "audi", "lamborghini", "ferrari", "jaguar", "range rover"]
+                # Define car types (not specific brands)
+                car_types = ["luxury", "premium", "high-end", "expensive", "sport", "sports", "performance", "fast", "race", "suv", "4x4", "jeep", "offroad", "adventure", "budget", "cheap", "economical", "affordable", "economy", "family", "spacious", "comfort", "7 seater", "seats"]
 
-                if any(brand in message_lower for brand in specific_brands):
-                    # Specific brand - just confirm we have it
-                    return "Yes, we have it! When do you need it?"
+                # Check if what they're asking for is a CAR TYPE
+                is_car_type = any(kw in message_lower for kw in car_types)
 
-                # Otherwise check what TYPE of car they're interested in
-                luxury_keywords = ["luxury", "premium", "high-end", "expensive"]
-                sport_keywords = ["sport", "sports", "performance", "fast", "race"]
-                suv_keywords = ["suv", "4x4", "jeep", "offroad", "adventure"]
-                economy_keywords = ["budget", "cheap", "economical", "affordable", "economy"]
-                family_keywords = ["family", "spacious", "comfort", "7 seater", "seats"]
-
-                if any(kw in message_lower for kw in luxury_keywords):
-                    return "Yes, we have luxury vehicles. What's your budget and when do you need it?"
-                elif any(kw in message_lower for kw in sport_keywords):
-                    return "Yes, we have sporty vehicles. What are your dates and budget?"
-                elif any(kw in message_lower for kw in suv_keywords):
-                    return "Yes, we have SUVs. When do you need it and what's your budget?"
-                elif any(kw in message_lower for kw in economy_keywords):
-                    return "Yes, we have budget-friendly options. When do you need the car?"
-                elif any(kw in message_lower for kw in family_keywords):
-                    return "Yes, we have spacious family vehicles. What dates work for you?"
+                if is_car_type:
+                    # It's a car type - respond with type confirmation
+                    if any(kw in message_lower for kw in ["luxury", "premium", "high-end", "expensive"]):
+                        return "Yes, we have luxury vehicles. What's your budget and when do you need it?"
+                    elif any(kw in message_lower for kw in ["sport", "sports", "performance", "fast", "race"]):
+                        return "Yes, we have sporty vehicles. What are your dates and budget?"
+                    elif any(kw in message_lower for kw in ["suv", "4x4", "jeep", "offroad", "adventure"]):
+                        return "Yes, we have SUVs. When do you need it and what's your budget?"
+                    elif any(kw in message_lower for kw in ["budget", "cheap", "economical", "affordable", "economy"]):
+                        return "Yes, we have budget-friendly options. When do you need the car?"
+                    elif any(kw in message_lower for kw in ["family", "spacious", "comfort", "7 seater", "seats"]):
+                        return "Yes, we have spacious family vehicles. What dates work for you?"
                 else:
-                    # Generic inquiry
-                    return "Yes, we have a wide range of vehicles. What type interests you?"
+                    # Not a known car type - assume it's a SPECIFIC CAR BRAND/MODEL
+                    # This catches ALL car brands automatically (BMW, Tesla, Rolls Royce, etc.)
+                    return "Yes, we have it! When do you need it?"
 
             context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
 

@@ -258,6 +258,17 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
         has_confirmation_word = any(word in message_text.lower() for word in confirmation_words) or wants_no_change
 
+        # Regent's Car Rental Business Info
+        pricing_info = {
+            "mileage": "Extra mileage is AED 1/km, or AED 0.50/km if you prepay (recommended for better value)! Daily includes 250 km, weekly 1,400 km, monthly 2,000 km.",
+            "insurance": "Optional Full Insurance (CDW) costs AED 30/day, AED 100/week, or AED 250/month. Basic insurance is already included - no hidden charges!",
+            "deposit": "Security options: AED 1,000 refundable deposit (returned within 30 days) OR non-deposit option at AED 30/day, AED 80/week, or AED 150/month.",
+            "delivery": "Delivery available: Dubai AED 50, Sharjah AED 150, Ajman AED 250, Other Emirates AED 350. Or collect free from our Business Bay office with complimentary extra mileage!",
+            "driver": "Additional driver costs AED 100 (optional).",
+            "payment": "Card/payment link transactions have a 3.5% admin fee.",
+            "office": "You can collect from our Business Bay office (Office 1856 - Tamani Arts Offices - Al Asayel Street) and enjoy complimentary extra mileage!"
+        }
+
         # Check if lead has already been sent to sales guy (but not if they're requesting a fresh inquiry)
         is_already_handled = lead.get("status") == "sent_to_sales" and not wants_fresh_inquiry
 
@@ -269,7 +280,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         photo_keywords = ["show me", "send me", "send photo", "send pics", "send picture", "photo", "picture", "image", "see the car"]
         is_asking_for_photo = any(kw in message_lower for kw in photo_keywords)
 
-        # PRIORITY 0 (HIGHEST): Photo request or pure availability check - answer directly
+        # PRIORITY 0 (HIGHEST): Photo request - answer directly
         if is_asking_for_photo:
             # Build missing info list
             missing_info = []
@@ -287,11 +298,33 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 # All details present
                 ai_response = "Got it you want to see the car, only our sales team can do that. Let me forward you to our sales team ;)"
             print(f"Photo request detected - sending photo response with missing info: {missing_info}")
-        # PRIORITY 1: Pure availability questions (do you have / u have / you have)
+        # PRIORITY 1: Pricing/Policy Questions
+        elif any(kw in message_lower for kw in ["mileage", "km", "kilometer", "extra mile"]):
+            ai_response = pricing_info["mileage"]
+            print(f"Mileage question detected")
+        elif any(kw in message_lower for kw in ["insurance", "cdw", "coverage", "damage"]):
+            ai_response = pricing_info["insurance"]
+            print(f"Insurance question detected")
+        elif any(kw in message_lower for kw in ["deposit", "security", "refund"]):
+            ai_response = pricing_info["deposit"]
+            print(f"Deposit question detected")
+        elif any(kw in message_lower for kw in ["delivery", "pickup", "collect", "collection"]):
+            ai_response = pricing_info["delivery"]
+            print(f"Delivery question detected")
+        elif any(kw in message_lower for kw in ["additional driver", "extra driver", "second driver"]):
+            ai_response = pricing_info["driver"]
+            print(f"Driver question detected")
+        elif any(kw in message_lower for kw in ["payment", "card", "fee", "admin fee"]):
+            ai_response = pricing_info["payment"]
+            print(f"Payment question detected")
+        elif any(kw in message_lower for kw in ["office", "business bay", "collection"]):
+            ai_response = pricing_info["office"]
+            print(f"Office collection question detected")
+        # PRIORITY 2: Pure availability questions (do you have / u have / you have)
         elif any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
             ai_response = "Yes, we have it ;)"
             print(f"Pure availability question detected")
-        # PRIORITY 0.5: Simple greeting - ask what car type they need
+        # PRIORITY 3: Simple greeting - ask what car type they need
         elif is_just_greeting:
             if is_already_handled:
                 # Just greet professionally, don't ask for anything
@@ -308,11 +341,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 # Not yet handled, ask for CAR TYPE first with categories
                 ai_response = "Hello! Welcome to our car rental service. What type of car would you like? We offer economy, luxury, sports, SUV, and offroad options."
             print(f"Greeting detected - responding professionally")
-        # PRIORITY 1: If asking ANY question (at any stage), answer it
+        # PRIORITY 4: If asking ANY question (at any stage), answer it
         elif is_asking_question and not is_asking_about_pricing:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
             print(f"Answering general question")
-        # PRIORITY 2: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
+        # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
@@ -330,7 +363,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
             # Closing message with full details
             ai_response = f"Thank you! Your inquiry has been received. Our sales team will contact you shortly with a detailed quote."
-        # PRIORITY 3: If all details NOW present but NOT confirming yet, ask for confirmation
+        # PRIORITY 6: If all details NOW present but NOT confirming yet, ask for confirmation
         elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             # Check if car_model is just a category, not a specific model
             car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
@@ -346,7 +379,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration}. Is everything correct?"
                 ai_response = confirmation_msg
                 print(f"All details including specific car model - asking confirmation")
-        # PRIORITY 4: If some details missing, ask for them in order: budget → start_date → rental_duration
+        # PRIORITY 7: If some details missing, ask for them in order: budget → start_date → rental_duration
         elif not all_details_present:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":
@@ -404,14 +437,14 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                     ai_response = "How many days or months would you need it for?"
                 else:
                     ai_response = "Thank you for that information!"
-        # PRIORITY 5: If customer wants a fresh inquiry with keywords, ask for car type first
+        # PRIORITY 8: If customer wants a fresh inquiry with keywords, ask for car type first
         elif wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)
             ai_response = "No problem. I'd be happy to help with a new inquiry. What type of vehicle would you prefer?"
-        # PRIORITY 6: If lead already sent to sales guy, only use natural AI responses for follow-up questions
+        # PRIORITY 9: If lead already sent to sales guy, only use natural AI responses for follow-up questions
         elif is_already_handled:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
-        # PRIORITY 7: If customer asks about pricing, handle it specially
+        # PRIORITY 10: Fallback - use AI for any other response
         elif is_asking_about_pricing:
             if all_details_present:
                 ai_response = "Thank you for your interest. Our sales team will provide you with a detailed pricing quote right away."

@@ -266,7 +266,8 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             "delivery": "Delivery available: Dubai AED 50, Sharjah AED 150, Ajman AED 250, Other Emirates AED 350. Or collect free from our Business Bay office with complimentary extra mileage!",
             "driver": "Additional driver costs AED 100 (optional).",
             "payment": "Card/payment link transactions have a 3.5% admin fee.",
-            "office": "You can collect from our Business Bay office (Office 1856 - Tamani Arts Offices - Al Asayel Street) and enjoy complimentary extra mileage!"
+            "office": "You can collect from our Business Bay office (Office 1856 - Tamani Arts Offices - Al Asayel Street) and enjoy complimentary extra mileage!",
+            "location": "📍 We are located at: Office 1856 - Tamani Arts Offices - Al Asayel Street - Business Bay - Dubai - United Arab Emirates\n\n📞 Phone: +971 58 570 2655\n\nYou're welcome to visit us or give us a call for any further assistance!"
         }
 
         # Check if lead has already been sent to sales guy (but not if they're requesting a fresh inquiry)
@@ -320,6 +321,9 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         elif any(kw in message_lower for kw in ["office", "business bay", "collection"]):
             ai_response = pricing_info["office"]
             print(f"Office collection question detected")
+        elif any(kw in message_lower for kw in ["where are you", "location", "address", "contact", "phone", "number", "how to reach"]):
+            ai_response = pricing_info["location"]
+            print(f"Location/contact question detected")
         # PRIORITY 2: Pure availability questions (do you have / u have / you have)
         elif any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
             ai_response = "Yes, we have it ;)"

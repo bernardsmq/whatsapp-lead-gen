@@ -100,10 +100,30 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             elif is_greeting and not lead_already_sent:
                 return "Hey! What's your budget for the rental?"
 
-            # If they ask about cars we have, show them our fleet options
-            car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars"]
+            # If they ask about cars we have, analyze what type they want
+            car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars", "you have"]
+
             if any(word in message_lower for word in car_inquiry_words):
-                return "We have a wide range of vehicles! Popular options include: Kia K3 (AED 75/day), Kia Pegas (AED 60/day), Geely Emgrand (AED 59/day), Hyundai Elantra (AED 140/day), Kia Sportage (AED 109/day), Kia K5 (AED 250/day), MG ZS Comfort, Mitsubishi Attrage, and Jetour T2. Plus many other options for both short-term and long-term rentals. What vehicle interests you?"
+                # Check what type of car they're interested in
+                luxury_keywords = ["luxury", "premium", "high-end", "expensive", "rolls", "bentley", "mercedes amg", "bmw m"]
+                sport_keywords = ["sport", "sports", "performance", "fast", "race"]
+                suv_keywords = ["suv", "4x4", "jeep", "offroad", "adventure"]
+                economy_keywords = ["budget", "cheap", "economical", "affordable", "economy"]
+                family_keywords = ["family", "spacious", "comfort", "7 seater", "seats"]
+
+                if any(kw in message_lower for kw in luxury_keywords):
+                    return "Yes, we have luxury vehicles! We offer premium options like the Kia K5 (AED 250/day) for high-end comfort, plus access to other luxury cars. What's your budget and when do you need it?"
+                elif any(kw in message_lower for kw in sport_keywords):
+                    return "Yes, we have sporty vehicles! Options like the Kia K5 and other performance-oriented cars available. What's your budget and rental dates?"
+                elif any(kw in message_lower for kw in suv_keywords):
+                    return "Yes, we have SUVs! Including the Kia Sportage (AED 109/day) and MG ZS Comfort for your adventure needs. What dates work for you?"
+                elif any(kw in message_lower for kw in economy_keywords):
+                    return "Yes, we have budget-friendly options! Starting from AED 59/day with the Geely Emgrand and Kia Pegas at AED 60/day. When do you need it?"
+                elif any(kw in message_lower for kw in family_keywords):
+                    return "Yes, we have spacious family vehicles! Options like the Hyundai Elantra (AED 140/day) and others for comfortable journeys. What dates are you looking at?"
+                else:
+                    # Generic inquiry - show list
+                    return "We have a wide range of vehicles! Popular options include: Kia K3 (AED 75/day), Kia Pegas (AED 60/day), Geely Emgrand (AED 59/day), Hyundai Elantra (AED 140/day), Kia Sportage (AED 109/day), Kia K5 (AED 250/day), MG ZS Comfort, Mitsubishi Attrage, and Jetour T2. Plus many other options. What interests you?"
 
             context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
 
@@ -117,6 +137,11 @@ Customer just said: {lead_message}
 YOUR TASK:
 Answer their question professionally and courteously. Be helpful and concise.
 
+SPECIAL INSTRUCTIONS:
+- If they ask "Do you have [car name]?" → Always say "Yes, we have it!"
+- If they ask about a car type → Confirm we have that type and ask for dates/budget
+- Never refuse a car request - we have options
+
 CRITICAL RULES - NEVER DO THESE:
 ❌ NEVER say "I see you said...", "I understand...", "Let me help you..."
 ❌ NEVER recap or parrot back what they said
@@ -124,6 +149,7 @@ CRITICAL RULES - NEVER DO THESE:
 ❌ NEVER be casual or overly informal
 ❌ NEVER use excessive exclamation marks or slang
 ❌ NEVER be robotic or repetitive
+❌ NEVER say we DON'T have a car
 ❌ NEVER ask questions you already asked
 
 DO THIS INSTEAD:
@@ -133,6 +159,7 @@ DO THIS INSTEAD:
 ✅ If they ask about something you don't know, say "Our sales team will be able to assist with that"
 ✅ Sound knowledgeable and trustworthy
 ✅ If already sent to sales, respond professionally to their questions
+✅ Always confirm we have what they're asking for
 
 ANSWER NOW:"""
 

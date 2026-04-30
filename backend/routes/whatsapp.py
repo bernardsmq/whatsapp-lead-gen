@@ -265,8 +265,16 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # If they have all details and have received a confirmation message, any new message is either confirmation or support
         has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
 
-        # PRIORITY 0 (HIGHEST): Simple greeting - ask what car type they need
-        if is_just_greeting:
+        # PRIORITY -1 (SUPER HIGH): Photo/Image requests
+        photo_keywords = ["show me", "send me", "send photo", "send pics", "send picture", "photo", "picture", "image", "see the car"]
+        is_asking_for_photo = any(kw in message_lower for kw in photo_keywords)
+
+        # PRIORITY 0 (HIGHEST): Photo request or pure availability check - answer directly
+        if is_asking_for_photo:
+            ai_response = "Let me get quick details and our sales team will send the photo of the car to you as soon as possible"
+            print(f"Photo request detected - sending photo response")
+        # PRIORITY 0.5: Simple greeting - ask what car type they need
+        elif is_just_greeting:
             if is_already_handled:
                 # Just greet professionally, don't ask for anything
                 greeting_responses = [

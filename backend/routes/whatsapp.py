@@ -414,6 +414,26 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             already_asked_date = any(kw in conv_lower for kw in date_question_keywords)
             already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
 
+            # If current message didn't extract car_model but previous messages did, reuse it
+            if car_model in ["not mentioned"] and previous_details.get("car_model") not in ["not mentioned", None, ""]:
+                print(f"Using previous car_model: {previous_details.get('car_model')}")
+                car_model = previous_details.get("car_model")
+
+            # Same for other fields - use previous if current extraction failed
+            if budget in ["not mentioned"] and previous_details.get("budget") not in ["not mentioned", None, ""]:
+                budget = previous_details.get("budget")
+            if start_date in ["not mentioned"] and previous_details.get("start_date") not in ["not mentioned", None, ""]:
+                start_date = previous_details.get("start_date")
+            if rental_duration in ["not mentioned"] and previous_details.get("rental_duration") not in ["not mentioned", None, ""]:
+                rental_duration = previous_details.get("rental_duration")
+
+            # Recalculate all_details_present with restored values
+            all_details_present = (
+                budget not in ["not mentioned"] and
+                start_date not in ["not mentioned"] and
+                rental_duration not in ["not mentioned"]
+            )
+
             # Check if the latest message is clearly stating a price (like "600$" or "$600")
             message_lower = message_text.lower().strip()
             is_price_statement = any(c.isdigit() for c in message_lower) and ("$" in message_lower or "aed" in message_lower or "dhs" in message_lower)

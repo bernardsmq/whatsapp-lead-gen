@@ -271,8 +271,26 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         # PRIORITY 0 (HIGHEST): Photo request or pure availability check - answer directly
         if is_asking_for_photo:
-            ai_response = "Let me get quick details and our sales team will send the photo of the car to you as soon as possible"
-            print(f"Photo request detected - sending photo response")
+            # Build missing info list
+            missing_info = []
+            if budget in ["not mentioned"]:
+                missing_info.append("your budget")
+            if start_date in ["not mentioned"]:
+                missing_info.append("your start date")
+            if rental_duration in ["not mentioned"]:
+                missing_info.append("rental duration")
+
+            if missing_info:
+                missing_str = " and ".join(missing_info)
+                ai_response = f"Got it you want to see the car, only our sales team can do that. Please tell me {missing_str}, so I can forward you to our sales team ;)"
+            else:
+                # All details present
+                ai_response = "Got it you want to see the car, only our sales team can do that. Let me forward you to our sales team ;)"
+            print(f"Photo request detected - sending photo response with missing info: {missing_info}")
+        # PRIORITY 1: Pure availability questions (do you have / u have / you have)
+        elif any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
+            ai_response = "Yes, we have it ;)"
+            print(f"Pure availability question detected")
         # PRIORITY 0.5: Simple greeting - ask what car type they need
         elif is_just_greeting:
             if is_already_handled:

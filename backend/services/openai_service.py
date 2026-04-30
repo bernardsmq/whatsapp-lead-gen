@@ -83,19 +83,6 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
         try:
             message_lower = lead_message.lower().strip()
 
-            # PRIORITY: Photo/Image requests
-            photo_keywords = ["show me", "send me", "photo", "picture", "image", "photos", "pics", "images", "pictures"]
-            is_asking_for_photo = any(kw in message_lower for kw in photo_keywords)
-            if is_asking_for_photo:
-                return "Let me get quick details and our sales team will send the photo of the car to you as soon as possible"
-
-            # PRIORITY: Pure availability questions (do you have / u have / you have + not asking for photo)
-            availability_keywords = ["do you have", "u have", "you have", "u got", "do u have", "have you got"]
-            is_asking_availability = any(kw in message_lower for kw in availability_keywords)
-            # Only respond with "Yes, we have it" if it's PURE availability question (not showing car, not asking for specific details)
-            if is_asking_availability and not is_asking_for_photo and len(message_lower) < 30:
-                return "Yes, we have it ;)"
-
             # If they just said a greeting
             greetings = ["hey", "hi", "hello", "yo", "what's up", "sup", "hiya"]
             is_greeting = any(message_lower.startswith(g) for g in greetings) and len(lead_message) < 10

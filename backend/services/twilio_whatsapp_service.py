@@ -9,7 +9,7 @@ class TwilioWhatsAppService:
         self.account_sid = os.getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
         self.twilio_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
-        self.template_sid = os.getenv("TWILIO_TEMPLATE_SID", "HXc4ed6b2ba4cb723081afc57303e718f4")
+        self.template_sid = os.getenv("TWILIO_TEMPLATE_SID", "HX005dfce9d30f0aa83cc1b781c3ac20bf")
 
         if not all([self.account_sid, self.auth_token, self.twilio_number]):
             raise Exception("Missing Twilio credentials in environment variables")

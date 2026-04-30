@@ -100,30 +100,30 @@ RETURN: Valid JSON with exactly these fields: budget, start_date, rental_duratio
             elif is_greeting and not lead_already_sent:
                 return "Hey! What's your budget for the rental?"
 
-            # If they ask about cars we have, analyze what type they want
+            # If they ask about cars we have, confirm we have it and ask standard questions
             car_inquiry_words = ["what cars", "which cars", "car models", "car options", "vehicles", "do you have", "available cars", "you have"]
 
             if any(word in message_lower for word in car_inquiry_words):
                 # Check what type of car they're interested in
-                luxury_keywords = ["luxury", "premium", "high-end", "expensive", "rolls", "bentley", "mercedes amg", "bmw m"]
+                luxury_keywords = ["luxury", "premium", "high-end", "expensive", "rolls", "bentley", "mercedes amg", "bmw m", "porsche"]
                 sport_keywords = ["sport", "sports", "performance", "fast", "race"]
                 suv_keywords = ["suv", "4x4", "jeep", "offroad", "adventure"]
                 economy_keywords = ["budget", "cheap", "economical", "affordable", "economy"]
                 family_keywords = ["family", "spacious", "comfort", "7 seater", "seats"]
 
                 if any(kw in message_lower for kw in luxury_keywords):
-                    return "Yes, we have luxury vehicles! We offer premium options like the Kia K5 (AED 250/day) for high-end comfort, plus access to other luxury cars. What's your budget and when do you need it?"
+                    return "Yes, we have luxury vehicles. What's your budget and when do you need it?"
                 elif any(kw in message_lower for kw in sport_keywords):
-                    return "Yes, we have sporty vehicles! Options like the Kia K5 and other performance-oriented cars available. What's your budget and rental dates?"
+                    return "Yes, we have sporty vehicles. What are your dates and budget?"
                 elif any(kw in message_lower for kw in suv_keywords):
-                    return "Yes, we have SUVs! Including the Kia Sportage (AED 109/day) and MG ZS Comfort for your adventure needs. What dates work for you?"
+                    return "Yes, we have SUVs. When do you need it and what's your budget?"
                 elif any(kw in message_lower for kw in economy_keywords):
-                    return "Yes, we have budget-friendly options! Starting from AED 59/day with the Geely Emgrand and Kia Pegas at AED 60/day. When do you need it?"
+                    return "Yes, we have budget-friendly options. When do you need the car?"
                 elif any(kw in message_lower for kw in family_keywords):
-                    return "Yes, we have spacious family vehicles! Options like the Hyundai Elantra (AED 140/day) and others for comfortable journeys. What dates are you looking at?"
+                    return "Yes, we have spacious family vehicles. What dates work for you?"
                 else:
-                    # Generic inquiry - show list
-                    return "We have a wide range of vehicles! Popular options include: Kia K3 (AED 75/day), Kia Pegas (AED 60/day), Geely Emgrand (AED 59/day), Hyundai Elantra (AED 140/day), Kia Sportage (AED 109/day), Kia K5 (AED 250/day), MG ZS Comfort, Mitsubishi Attrage, and Jetour T2. Plus many other options. What interests you?"
+                    # Generic inquiry
+                    return "Yes, we have a wide range of vehicles. What type interests you?"
 
             context_note = "They're already connected with our sales team." if lead_already_sent else "We're still collecting their details."
 

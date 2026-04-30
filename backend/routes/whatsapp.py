@@ -194,19 +194,31 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         is_confirmation = qualification.get("is_confirmation", False)
 
         # If current message didn't extract a field but previous messages did, reuse it
-        # This prevents re-asking questions when customer mentioned info in earlier messages
-        if car_model in ["not mentioned"] and previous_details.get("car_model") not in ["not mentioned", None, ""]:
-            print(f"Using previous car_model: {previous_details.get('car_model')}")
-            car_model = previous_details.get("car_model")
-        if budget in ["not mentioned"] and previous_details.get("budget") not in ["not mentioned", None, ""]:
-            print(f"Using previous budget: {previous_details.get('budget')}")
-            budget = previous_details.get("budget")
-        if start_date in ["not mentioned"] and previous_details.get("start_date") not in ["not mentioned", None, ""]:
-            print(f"Using previous start_date: {previous_details.get('start_date')}")
-            start_date = previous_details.get("start_date")
-        if rental_duration in ["not mentioned"] and previous_details.get("rental_duration") not in ["not mentioned", None, ""]:
-            print(f"Using previous rental_duration: {previous_details.get('rental_duration')}")
-            rental_duration = previous_details.get("rental_duration")
+        # BUT only if it's the SAME car (no fresh inquiry/car switch)
+        previous_car = previous_details.get("car_model", "not mentioned")
+        is_different_car = (car_model not in ["not mentioned"] and
+                           previous_car not in ["not mentioned", None, ""] and
+                           car_model.lower() != previous_car.lower())
+
+        if is_different_car:
+            print(f"New car inquiry detected: {car_model} (previously {previous_car}) - clearing old details")
+            # Clear old inquiry details when switching to new car
+            # Don't restore budget, start_date, rental_duration
+            pass
+        else:
+            # Same car or no previous car - safe to restore values
+            if car_model in ["not mentioned"] and previous_car not in ["not mentioned", None, ""]:
+                print(f"Using previous car_model: {previous_car}")
+                car_model = previous_car
+            if budget in ["not mentioned"] and previous_details.get("budget") not in ["not mentioned", None, ""]:
+                print(f"Using previous budget: {previous_details.get('budget')}")
+                budget = previous_details.get("budget")
+            if start_date in ["not mentioned"] and previous_details.get("start_date") not in ["not mentioned", None, ""]:
+                print(f"Using previous start_date: {previous_details.get('start_date')}")
+                start_date = previous_details.get("start_date")
+            if rental_duration in ["not mentioned"] and previous_details.get("rental_duration") not in ["not mentioned", None, ""]:
+                print(f"Using previous rental_duration: {previous_details.get('rental_duration')}")
+                rental_duration = previous_details.get("rental_duration")
 
         # Calculate all_details_present based on extracted values (more reliable than GPT)
         # Check for "not mentioned" as missing - need budget, start_date, and rental_duration

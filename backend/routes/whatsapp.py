@@ -378,7 +378,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             print(f"Answering general question")
         # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present and not is_already_handled:
-            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585620570")
+            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
             # Send to sales guy via WhatsApp
@@ -499,7 +499,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                         print(f"Sent to sales < 8 min ago ({time_diff:.1f} min) - reassurance response")
                     else:
                         # After 8 minutes - acknowledge delay and provide phone number
-                        ai_response = "Only the Sales team can proceed with payments and booking. My apologies if they still haven't reached out to you, you can text them to this number: +971 58 570 2655"
+                        ai_response = "Only the Sales team can proceed with payments and booking. My apologies if they still haven't reached out to you, you can text them to this number: +971585702655"
                         print(f"Sent to sales {time_diff:.1f} min ago - apology response with phone")
                 else:
                     # No timestamp, use default response

@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 import base64
 import json
@@ -24,8 +25,12 @@ class TwilioWhatsAppService:
             # Convert to string first in case it's an integer
             phone_number = str(phone_number).strip()
 
-            if not phone_number.startswith("+"):
-                phone_number = "+" + phone_number.replace(" ", "").replace("-", "")
+            # Remove all non-digit characters (spaces, dashes, plus signs, hidden Unicode)
+            # Keep only digits
+            digits_only = re.sub(r'\D', '', phone_number)
+
+            # Add + prefix
+            phone_number = "+" + digits_only
 
             print(f"📱 Sending Twilio template to {first_name} ({phone_number})")
 
@@ -57,12 +62,15 @@ class TwilioWhatsAppService:
     def send_text_message(self, phone_number: str, message_text: str) -> Dict:
         """Send plain text WhatsApp message"""
         try:
-            # Format phone number
-            # Convert to string first in case it's an integer
+            # Format phone number - remove all non-digit characters and hidden Unicode
             phone_number = str(phone_number).strip()
 
-            if not phone_number.startswith("+"):
-                phone_number = "+" + phone_number.replace(" ", "").replace("-", "")
+            # Remove all non-digit characters (spaces, dashes, plus signs, hidden Unicode)
+            # Keep only digits
+            digits_only = re.sub(r'\D', '', phone_number)
+
+            # Add + prefix
+            phone_number = "+" + digits_only
 
             print(f"Sending WhatsApp text to {phone_number}")
 

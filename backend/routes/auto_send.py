@@ -76,7 +76,7 @@ async def check_timeout_leads():
                 score = lead.get("score", "cold")
 
                 # Send to sales guy
-                sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
+                sales_phone = os.getenv("SALES_GUY_PHONE", "+971585620570")
                 sales_msg = f"🎉 NEW LEAD (Auto-sent - {score})\n\nName: {first_name}\nPhone: {phone}\nCar: {car_type}\nDuration: {duration}\nDates: {dates}"
 
                 twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)

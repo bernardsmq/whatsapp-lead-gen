@@ -378,7 +378,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             print(f"Answering general question")
         # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif has_confirmation_word and all_details_present and not is_already_handled:
-            sales_phone = os.getenv("SALES_GUY_PHONE", "+37124402144")
+            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585620570")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
             # Send to sales guy via WhatsApp

@@ -11,6 +11,7 @@ class TwilioWhatsAppService:
         self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
         self.twilio_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
         self.template_sid = os.getenv("TWILIO_TEMPLATE_SID", "HX005dfce9d30f0aa83cc1b781c3ac20bf")
+        self.status_callback_url = os.getenv("TWILIO_STATUS_CALLBACK_URL")
 
         if not all([self.account_sid, self.auth_token, self.twilio_number]):
             raise Exception("Missing Twilio credentials in environment variables")
@@ -42,6 +43,10 @@ class TwilioWhatsAppService:
                 "ContentVariables": json.dumps({"name": first_name})
             }
 
+            # Add status callback URL if configured
+            if self.status_callback_url:
+                data["StatusCallback"] = self.status_callback_url
+
             response = requests.post(
                 f"{self.base_url}/Messages.json",
                 data=data,
@@ -53,7 +58,12 @@ class TwilioWhatsAppService:
             message_sid = result.get("sid", "")
 
             print(f"✅ Template message sent to {first_name}. SID: {message_sid}")
-            return {"status": "sent", "sid": message_sid}
+            return {
+                "status": "sent",
+                "sid": message_sid,
+                "template_sid": self.template_sid,
+                "template_variables": {"name": first_name}
+            }
 
         except Exception as e:
             print(f"❌ Failed to send template message: {str(e)}")
@@ -79,6 +89,10 @@ class TwilioWhatsAppService:
                 "To": f"whatsapp:{phone_number}",
                 "Body": message_text
             }
+
+            # Add status callback URL if configured
+            if self.status_callback_url:
+                data["StatusCallback"] = self.status_callback_url
 
             response = requests.post(
                 f"{self.base_url}/Messages.json",

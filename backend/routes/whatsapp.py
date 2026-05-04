@@ -578,6 +578,37 @@ async def send_bulk_messages(request: BulkSendRequest, user_id: str = Depends(ve
                 # Send template message
                 send_result = twilio_whatsapp_service.send_template_message(phone, name)
 
+                # Find or create the lead by phone number
+                lead_response = supabase.table("leads").select("id").eq("phone", phone).execute()
+                if lead_response.data:
+                    lead_id = lead_response.data[0]["id"]
+                else:
+                    # Create new lead if doesn't exist
+                    new_lead_response = supabase.table("leads").insert({
+                        "phone": phone,
+                        "first_name": name,
+                        "score": "cold",
+                        "status": "qualified"
+                    }).execute()
+                    lead_id = new_lead_response.data[0]["id"] if new_lead_response.data else None
+
+                # Store template message as a conversation record with status tracking
+                if lead_id and send_result.get("sid"):
+                    try:
+                        supabase.table("conversations").insert({
+                            "lead_id": lead_id,
+                            "message_type": "template",
+                            "sender": "template",
+                            "content": "Template message sent (details stored in template_sid and template_variables)",
+                            "message_sid": send_result.get("sid"),
+                            "template_sid": send_result.get("template_sid"),
+                            "template_variables": json.dumps(send_result.get("template_variables", {})),
+                            "delivery_status": "sent"
+                        }).execute()
+                        print(f"  ✓ Stored template message for {name}")
+                    except Exception as e:
+                        print(f"  ⚠️ Warning: Could not store template message: {str(e)}")
+
                 results.append({
                     "name": name,
                     "phone": phone,
@@ -614,3 +645,52 @@ async def send_bulk_messages(request: BulkSendRequest, user_id: str = Depends(ve
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/webhook/status")
+async def webhook_status_callback(request: Request):
+    """Receive Twilio message status callbacks"""
+    try:
+        form_data = await request.form()
+
+        message_sid = form_data.get("MessageSid")
+        message_status = form_data.get("MessageStatus")  # Values: sent, delivered, read, failed, undelivered
+
+        print(f"\n=== TWILIO STATUS CALLBACK ===")
+        print(f"MessageSid: {message_sid}")
+        print(f"Status: {message_status}")
+
+        # Map Twilio status to our status values
+        status_map = {
+            "sent": "sent",
+            "delivered": "delivered",
+            "read": "read",
+            "failed": "failed",
+            "undelivered": "failed"
+        }
+
+        db_status = status_map.get(message_status, message_status)
+
+        # Update conversation record with status
+        if message_sid:
+            from datetime import datetime
+            try:
+                result = supabase.table("conversations").update({
+                    "delivery_status": db_status,
+                    "delivery_timestamp": datetime.utcnow().isoformat()
+                }).eq("message_sid", message_sid).execute()
+
+                if result.data:
+                    print(f"✓ Updated message status to: {db_status}")
+                else:
+                    print(f"⚠️ No message found with SID: {message_sid}")
+            except Exception as e:
+                print(f"Error updating message status: {str(e)}")
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        print(f"✗ Status callback error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "detail": str(e)}

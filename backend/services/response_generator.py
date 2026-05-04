@@ -71,14 +71,14 @@ class ResponseGenerator:
 
         # PRIORITY 2: User provided new information
         if extracted_fields:
-            # Update state with new fields
-            for field, value in extracted_fields.items():
-                if value:
-                    self.state.update_field(field, value)
-
-            # Check if they confirmed
+            # Check if they confirmed (handle separately, don't pass to update_field)
             if extracted_fields.get("confirmed"):
                 self.state.mark_confirmed()
+
+            # Update state with new fields (skip 'confirmed' - already handled)
+            for field, value in extracted_fields.items():
+                if value and field != "confirmed":
+                    self.state.update_field(field, value)
 
             # Acknowledge their info
             ack = self._acknowledge_info(extracted_fields)

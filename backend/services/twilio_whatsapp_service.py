@@ -11,7 +11,6 @@ class TwilioWhatsAppService:
         self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
         self.twilio_number = os.getenv("TWILIO_WHATSAPP_NUMBER")
         self.template_sid = os.getenv("TWILIO_TEMPLATE_SID", "HX005dfce9d30f0aa83cc1b781c3ac20bf")
-        self.status_callback_url = os.getenv("TWILIO_STATUS_CALLBACK_URL")
 
         if not all([self.account_sid, self.auth_token, self.twilio_number]):
             raise Exception("Missing Twilio credentials in environment variables")
@@ -42,13 +41,6 @@ class TwilioWhatsAppService:
                 "ContentSid": self.template_sid,
                 "ContentVariables": json.dumps({"name": first_name})
             }
-
-            # Add status callback URL only if it's properly configured
-            if self.status_callback_url and self.status_callback_url.startswith(('http://', 'https://')):
-                data["StatusCallback"] = self.status_callback_url
-                print(f"  Status callback enabled: {self.status_callback_url}")
-            elif self.status_callback_url:
-                print(f"  ⚠️ Warning: TWILIO_STATUS_CALLBACK_URL is set but not a valid URL, skipping...")
 
             print(f"  Sending Twilio request with data: {data}")
             response = requests.post(
@@ -100,12 +92,6 @@ class TwilioWhatsAppService:
                 "To": f"whatsapp:{phone_number}",
                 "Body": message_text
             }
-
-            # Add status callback URL only if it's properly configured
-            if self.status_callback_url and self.status_callback_url.startswith(('http://', 'https://')):
-                data["StatusCallback"] = self.status_callback_url
-            elif self.status_callback_url:
-                print(f"  ⚠️ Warning: TWILIO_STATUS_CALLBACK_URL is set but not a valid URL, skipping...")
 
             print(f"  Sending Twilio request with data: {data}")
             response = requests.post(

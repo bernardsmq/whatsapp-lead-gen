@@ -37,16 +37,27 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
         # Insert leads into database
         for lead_data in leads_data:
             # Clean data - map column names if needed
-            # Handle "Name" column by using it as first_name if First Name doesn't exist
+            # Handle various name column formats
             first_name = lead_data.get("First Name") or lead_data.get("first_name")
-            if not first_name and lead_data.get("Name"):
+            if not first_name and lead_data.get("Full Name"):
+                # Split full name - take first word as first name, rest as last name
+                full_name_parts = str(lead_data.get("Full Name")).split()
+                first_name = full_name_parts[0] if full_name_parts else None
+                last_name = " ".join(full_name_parts[1:]) if len(full_name_parts) > 1 else None
+            elif not first_name and lead_data.get("Name"):
                 first_name = lead_data.get("Name").split()[0]  # Use first word as first_name
                 last_name = " ".join(lead_data.get("Name").split()[1:]) if len(lead_data.get("Name").split()) > 1 else None
             else:
                 last_name = lead_data.get("Last Name")
 
+            # Handle various phone column formats
+            phone = (lead_data.get("Mobile No") or
+                    lead_data.get("phone") or
+                    lead_data.get("Phone Number") or
+                    lead_data.get("Phone"))
+
             lead = {
-                "phone": lead_data.get("Mobile No") or lead_data.get("phone"),
+                "phone": phone,
                 "first_name": first_name,
                 "middle_name": lead_data.get("Middle Name"),
                 "last_name": last_name or lead_data.get("Last Name"),
@@ -98,15 +109,26 @@ async def upload_sheet(file: UploadFile = File(...), user_id: str = Depends(veri
         # Filter leads to only include name and phone for preview
         preview_leads = []
         for lead in leads_data:
+            # Handle various name column formats
             first_name = lead.get("First Name") or lead.get("first_name")
-            if not first_name and lead.get("Name"):
+            if not first_name and lead.get("Full Name"):
+                # Use full name directly if available
+                full_name = str(lead.get("Full Name")).strip()
+                first_name = full_name.split()[0] if full_name else None
+                last_name = " ".join(full_name.split()[1:]) if len(full_name.split()) > 1 else ""
+            elif not first_name and lead.get("Name"):
                 first_name = lead.get("Name").split()[0]
                 last_name = " ".join(lead.get("Name").split()[1:]) if len(lead.get("Name").split()) > 1 else ""
             else:
                 last_name = lead.get("Last Name") or ""
 
             full_name = f"{first_name} {last_name}".strip() if first_name else "Unknown"
-            phone = lead.get("Mobile No") or lead.get("phone") or ""
+
+            # Handle various phone column formats
+            phone = (lead.get("Mobile No") or
+                    lead.get("phone") or
+                    lead.get("Phone Number") or
+                    lead.get("Phone") or "")
 
             if phone:  # Only include if has phone
                 preview_leads.append({

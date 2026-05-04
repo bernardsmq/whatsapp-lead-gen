@@ -43,9 +43,12 @@ class TwilioWhatsAppService:
                 "ContentVariables": json.dumps({"name": first_name})
             }
 
-            # Add status callback URL if configured
-            if self.status_callback_url:
+            # Add status callback URL only if it's properly configured
+            if self.status_callback_url and self.status_callback_url.startswith(('http://', 'https://')):
                 data["StatusCallback"] = self.status_callback_url
+                print(f"  Status callback enabled: {self.status_callback_url}")
+            elif self.status_callback_url:
+                print(f"  ⚠️ Warning: TWILIO_STATUS_CALLBACK_URL is set but not a valid URL, skipping...")
 
             print(f"  Sending Twilio request with data: {data}")
             response = requests.post(
@@ -98,9 +101,11 @@ class TwilioWhatsAppService:
                 "Body": message_text
             }
 
-            # Add status callback URL if configured
-            if self.status_callback_url:
+            # Add status callback URL only if it's properly configured
+            if self.status_callback_url and self.status_callback_url.startswith(('http://', 'https://')):
                 data["StatusCallback"] = self.status_callback_url
+            elif self.status_callback_url:
+                print(f"  ⚠️ Warning: TWILIO_STATUS_CALLBACK_URL is set but not a valid URL, skipping...")
 
             print(f"  Sending Twilio request with data: {data}")
             response = requests.post(

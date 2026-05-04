@@ -47,13 +47,18 @@ app = FastAPI(
 @app.middleware("http")
 async def https_redirect_middleware(request, call_next):
     """Ensure HTTPS protocol is properly recognized behind proxy"""
-    # Detect HTTPS from proxy headers (Railway sends x-forwarded-proto)
-    x_forwarded_proto = request.headers.get("x-forwarded-proto")
-    if x_forwarded_proto:
-        request.scope["scheme"] = x_forwarded_proto
+    try:
+        # Detect HTTPS from proxy headers (Railway sends x-forwarded-proto)
+        x_forwarded_proto = request.headers.get("x-forwarded-proto")
+        if x_forwarded_proto:
+            request.scope["scheme"] = x_forwarded_proto
 
-    response = await call_next(request)
-    return response
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        print(f"⚠️ Middleware error: {str(e)}")
+        from fastapi import Response
+        return Response("Internal Server Error", status_code=500)
 
 # CORS middleware
 frontend_url = os.getenv("FRONTEND_URL", "https://whatsapp-lead-gen-production.up.railway.app")
@@ -95,6 +100,18 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """Global exception handler to prevent h11 protocol errors"""
+    print(f"🔴 GLOBAL EXCEPTION: {str(exc)}")
+    import traceback
+    traceback.print_exc()
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Server error - check logs"}
+    )
 
 @app.get("/debug/status")
 async def debug_status():

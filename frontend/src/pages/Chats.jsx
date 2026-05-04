@@ -31,10 +31,11 @@ export default function Chats() {
     setError(null);
     try {
       const response = await leadsAPI.getAll();
-      setLeads(response.data || []);
+      const leadsData = response.data.leads || response.data || [];
+      setLeads(leadsData);
       // Select first lead by default
-      if (response.data && response.data.length > 0) {
-        setSelectedLeadId(response.data[0].id);
+      if (leadsData && leadsData.length > 0) {
+        setSelectedLeadId(leadsData[0].id);
       }
     } catch (err) {
       console.error('Full error object:', err);

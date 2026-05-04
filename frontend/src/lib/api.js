@@ -33,7 +33,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'X-Client-Version': `${Date.now()}`, // Cache busting header
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 60000, // 60 second timeout (increased from 30s for large datasets)
 });
 
 console.log('✅ Axios instance created. Current baseURL:', api.defaults.baseURL);
@@ -84,7 +84,7 @@ export const authAPI = {
 };
 
 export const leadsAPI = {
-  getAll: (status, score) => api.get('/leads', { params: { status_filter: status, score_filter: score } }),
+  getAll: (status, score, limit = 50, offset = 0) => api.get('/leads', { params: { status_filter: status, score_filter: score, limit, offset } }),
   getById: (id) => api.get(`/leads/${id}`),
   getConversations: (id) => api.get(`/leads/${id}/conversations`),
   updateQualification: (id, data) => api.post(`/leads/${id}/qualification`, data),

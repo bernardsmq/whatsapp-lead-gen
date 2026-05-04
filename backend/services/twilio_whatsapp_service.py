@@ -47,6 +47,7 @@ class TwilioWhatsAppService:
             if self.status_callback_url:
                 data["StatusCallback"] = self.status_callback_url
 
+            print(f"  Sending Twilio request with data: {data}")
             response = requests.post(
                 f"{self.base_url}/Messages.json",
                 data=data,
@@ -67,6 +68,13 @@ class TwilioWhatsAppService:
 
         except Exception as e:
             print(f"❌ Failed to send template message: {str(e)}")
+            # Try to get more details from response
+            try:
+                if 'response' in locals() and hasattr(response, 'text'):
+                    error_detail = response.text
+                    print(f"  Twilio error response: {error_detail}")
+            except:
+                pass
             raise Exception(f"Twilio WhatsApp error: {str(e)}")
 
     def send_text_message(self, phone_number: str, message_text: str) -> Dict:
@@ -94,6 +102,7 @@ class TwilioWhatsAppService:
             if self.status_callback_url:
                 data["StatusCallback"] = self.status_callback_url
 
+            print(f"  Sending Twilio request with data: {data}")
             response = requests.post(
                 f"{self.base_url}/Messages.json",
                 data=data,
@@ -109,6 +118,13 @@ class TwilioWhatsAppService:
 
         except Exception as e:
             print(f"✗ Failed to send text message: {str(e)}")
+            # Try to get more details from response
+            try:
+                if 'response' in locals() and hasattr(response, 'text'):
+                    error_detail = response.text
+                    print(f"  Twilio error response: {error_detail}")
+            except:
+                pass
             raise Exception(f"Twilio WhatsApp error: {str(e)}")
 
 twilio_whatsapp_service = TwilioWhatsAppService()

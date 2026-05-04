@@ -93,14 +93,16 @@ class ResponseGenerator:
 
             # Check if we should ask this field
             if self.state.should_ask_field(next_field, max_asks=2):
+                ask_count_before = self.state.has_field_been_asked(next_field)[1]
                 self.state.mark_field_asked(next_field)
-                return self._ask_for_field(next_field)
+                return self._ask_for_field(next_field, ask_count_before)
             elif len(missing) > 1:
                 # Already asked this field twice, skip to next
                 next_field = missing[1]
                 if self.state.should_ask_field(next_field, max_asks=2):
+                    ask_count_before = self.state.has_field_been_asked(next_field)[1]
                     self.state.mark_field_asked(next_field)
-                    return self._ask_for_field(next_field)
+                    return self._ask_for_field(next_field, ask_count_before)
 
         # PRIORITY 4: All details present, ask for confirmation
         if self.state.is_ready_for_sales() and not self.state.is_confirmed():
@@ -210,9 +212,10 @@ class ResponseGenerator:
         ack = "Perfect! " + ", ".join(parts) + "."
         return ack
 
-    def _ask_for_field(self, field_name: str) -> str:
+    def _ask_for_field(self, field_name: str, ask_count: int = 0) -> str:
         """Ask for a specific field with natural variations"""
-        ask_count = self.state.has_field_been_asked(field_name)[1]
+        # ask_count is the count BEFORE mark_field_asked() was called
+        # 0 = first time asking, 1 = second time asking, etc.
 
         if field_name == "vehicle_model":
             if ask_count == 0:

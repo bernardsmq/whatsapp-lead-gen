@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { analyticsAPI } from '../lib/api';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export default function MessagesSent() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -68,7 +69,7 @@ export default function MessagesSent() {
                     <p className="text-sm text-slate-400">{msg.lead_phone}</p>
                     <p className="text-slate-300 mt-2">{msg.message}</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString()}
+                      {formatInDubaiTz(msg.created_at, 'time')}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useConversations } from '../hooks/useLeads';
 import { subscribeToConversations } from '../lib/supabase';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export const ChatViewer = ({ leadId }) => {
   const { conversations, loading } = useConversations(leadId);
@@ -79,7 +80,7 @@ export const ChatViewer = ({ leadId }) => {
                   <p className="text-sm">{msg.content}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <p className={`text-xs opacity-70`}>
-                      {new Date(msg.created_at).toLocaleTimeString()}
+                      {formatInDubaiTz(msg.created_at, 'time')}
                     </p>
                     {msg.delivery_status && (
                       <p className={`text-xs font-bold ${statusBadge.color}`}>

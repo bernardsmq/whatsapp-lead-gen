@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export const LeadsSidebar = ({ leads, onSelectLead }) => {
   const [expandedLead, setExpandedLead] = useState(null);
@@ -105,7 +106,7 @@ export const LeadsSidebar = ({ leads, onSelectLead }) => {
                   {lead.created_at && (
                     <div className="flex justify-between text-xs text-gray-500 pt-2 border-t">
                       <span>Added:</span>
-                      <span>{new Date(lead.created_at).toLocaleDateString()}</span>
+                      <span>{formatInDubaiTz(lead.created_at, 'date')}</span>
                     </div>
                   )}
                 </div>

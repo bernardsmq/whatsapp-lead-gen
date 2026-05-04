@@ -7,6 +7,7 @@ import { ManualLeadForm } from '../components/ManualLeadForm';
 import { StatsCard } from '../components/StatsCard';
 import Sidebar from '../components/Sidebar';
 import { analyticsAPI } from '../lib/api';
+import { formatInDubaiTz } from '../lib/dateUtils';
 import AllLeads from './AllLeads';
 import Chats from './Chats';
 import HotLeads from './HotLeads';
@@ -155,7 +156,7 @@ export default function Dashboard() {
                           <p className="font-semibold text-white">{activity.title}</p>
                           <p className="text-sm text-slate-400">{activity.description}</p>
                           <p className="text-xs text-slate-500 mt-1">
-                            {new Date(activity.timestamp).toLocaleString()}
+                            {formatInDubaiTz(activity.timestamp, 'datetime')}
                           </p>
                         </div>
                       </div>

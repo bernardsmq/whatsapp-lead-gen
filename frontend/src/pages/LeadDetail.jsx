@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useLead } from '../hooks/useLeads';
 import { ChatViewer } from '../components/ChatViewer';
 import { StatusBadge } from '../components/StatusBadge';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export default function LeadDetail() {
   const { id } = useParams();

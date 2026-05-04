@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { leadsAPI } from '../lib/api';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export default function WarmLeads() {
   const navigate = useNavigate();
@@ -79,8 +80,8 @@ export default function WarmLeads() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-400">
-                    {lead.updated_at ? new Date(lead.updated_at).toLocaleDateString() :
-                     lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '-'}
+                    {lead.updated_at ? formatInDubaiTz(lead.updated_at, 'date') :
+                     lead.created_at ? formatInDubaiTz(lead.created_at, 'date') : '-'}
                   </td>
                   <td className="px-6 py-4">
                     <button

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { leadsAPI } from '../lib/api';
+import { formatInDubaiTz } from '../lib/dateUtils';
 
 export default function Chats() {
   const [leads, setLeads] = useState([]);
@@ -209,7 +210,7 @@ export default function Chats() {
                                   ? 'text-purple-200'
                                   : 'text-slate-400'
                               }`}>
-                                {new Date(conv.created_at).toLocaleTimeString()}
+                                {formatInDubaiTz(conv.created_at, 'time')}
                               </p>
                               {conv.delivery_status && (
                                 <p className={`text-xs font-bold ${status.color}`}>

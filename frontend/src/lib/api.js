@@ -84,7 +84,7 @@ export const authAPI = {
 };
 
 export const leadsAPI = {
-  getAll: (status, score, limit = 50, offset = 0) => api.get('/leads', { params: { status_filter: status, score_filter: score, limit, offset } }),
+  getAll: (status, score, limit = 100, offset = 0) => api.get('/leads', { params: { status_filter: status, score_filter: score, limit, offset } }),
   getById: (id) => api.get(`/leads/${id}`),
   getConversations: (id) => api.get(`/leads/${id}/conversations`),
   updateQualification: (id, data) => api.post(`/leads/${id}/qualification`, data),

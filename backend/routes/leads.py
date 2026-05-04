@@ -24,7 +24,7 @@ class Qualification(BaseModel):
 
 @router.get("/")
 @router.get("")
-async def get_leads(user_id: str = Depends(verify_token), status_filter: Optional[str] = None, score_filter: Optional[str] = None, limit: int = 50, offset: int = 0):
+async def get_leads(user_id: str = Depends(verify_token), status_filter: Optional[str] = None, score_filter: Optional[str] = None, limit: int = 100, offset: int = 0):
     try:
         print(f"\n=== GET /leads ===")
         print(f"User ID: {user_id}")
@@ -32,7 +32,8 @@ async def get_leads(user_id: str = Depends(verify_token), status_filter: Optiona
         print(f"Score filter: {score_filter}")
         print(f"Pagination: limit={limit}, offset={offset}")
 
-        query = supabase.table("leads").select("*, qualifications(*)")
+        # Select only essential fields to reduce payload size and speed up query
+        query = supabase.table("leads").select("id, phone, first_name, last_name, email, score, status, created_at")
 
         if status_filter:
             print(f"Applying status filter: {status_filter}")
@@ -41,20 +42,12 @@ async def get_leads(user_id: str = Depends(verify_token), status_filter: Optiona
             print(f"Applying score filter: {score_filter}")
             query = query.eq("score", score_filter)
 
-        # Apply pagination
-        query = query.range(offset, offset + limit - 1)
-
+        # Apply pagination - get the count first
         print(f"Executing query...")
-        response = query.execute()
+        response = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
 
-        total_count = len(response.data) if response.data else 0
-        print(f"✓ Got {total_count} leads (page)")
-        return {
-            "leads": response.data,
-            "count": total_count,
-            "limit": limit,
-            "offset": offset
-        }
+        print(f"✓ Got {len(response.data) if response.data else 0} leads")
+        return response.data
     except Exception as e:
         print(f"✗ Error in GET /leads: {str(e)}")
         import traceback

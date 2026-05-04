@@ -204,10 +204,10 @@ Extract only if explicitly mentioned:
 6. confirmed: true only if they used confirmation words (yes, agree, sure, correct, sounds good, ok, yep) or null/false
 
 EXAMPLES:
-- "I want a Tesla" → {"vehicle_model": "Tesla"}
-- "Next week for 2 weeks" → {"rental_start_date": "next week", "rental_duration": "2 weeks"}
-- "Yeah sounds good" → {"confirmed": true}
-- "What's the price?" → {} (no details, just question)
+- "I want a Tesla" → {{"vehicle_model": "Tesla"}}
+- "Next week for 2 weeks" → {{"rental_start_date": "next week", "rental_duration": "2 weeks"}}
+- "Yeah sounds good" → {{"confirmed": true}}
+- "What's the price?" → {{}} (no details, just question)
 
 Return ONLY valid JSON with non-null fields."""
 

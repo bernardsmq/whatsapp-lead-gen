@@ -8,6 +8,7 @@ export default function Chats() {
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Test API connection first
@@ -67,12 +68,32 @@ export default function Chats() {
 
   const selectedLead = leads.find(l => l.id === selectedLeadId);
 
+  // Filter leads based on search query
+  const filteredLeads = leads.filter(lead => {
+    const searchLower = searchQuery.toLowerCase();
+    const fullName = `${lead.first_name || ''} ${lead.last_name || ''}`.toLowerCase();
+    const phone = (lead.phone || '').toLowerCase();
+    return fullName.includes(searchLower) || phone.includes(searchLower);
+  });
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-screen">
       {/* Leads List */}
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden flex flex-col">
-        <div className="bg-slate-700 px-6 py-4 border-b border-slate-600">
+        <div className="bg-slate-700 px-6 py-4 border-b border-slate-600 space-y-3">
           <h2 className="text-xl font-bold text-white">Chats</h2>
+          <input
+            type="text"
+            placeholder="Search by name or phone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition text-sm"
+          />
+          {leads.length > 0 && (
+            <p className="text-xs text-slate-300">
+              Showing {filteredLeads.length} of {leads.length} chats
+            </p>
+          )}
         </div>
 
         {error && (
@@ -90,9 +111,13 @@ export default function Chats() {
             <div className="px-6 py-8 text-center">
               <p className="text-slate-400">No chats available</p>
             </div>
+          ) : filteredLeads.length === 0 ? (
+            <div className="px-6 py-8 text-center">
+              <p className="text-slate-400">No chats match "{searchQuery}"</p>
+            </div>
           ) : (
             <div className="divide-y divide-slate-700">
-              {leads.map((lead) => (
+              {filteredLeads.map((lead) => (
                 <button
                   key={lead.id}
                   onClick={() => handleLeadSelect(lead.id)}

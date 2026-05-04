@@ -180,4 +180,64 @@ ANSWER NOW:"""
             print(f"✗ Response generation error: {str(e)}")
             return "What kind of car you looking for?"
 
+    def extract_all_fields(self, message: str, conversation_history: str = "") -> Dict:
+        """
+        Extract EVERY field mentioned in the message.
+        Returns ONLY fields that were explicitly stated (no inferred/missing fields).
+        Used by ResponseGenerator for fine-grained state updates.
+        """
+        try:
+            prompt = f"""You are a car rental conversation analyzer. Extract ONLY fields that the customer explicitly mentioned in their latest message.
+DO NOT invent or infer missing fields - only return fields that were directly stated.
+
+CONVERSATION HISTORY:
+{conversation_history}
+
+Latest message: "{message}"
+
+Extract only if explicitly mentioned:
+1. vehicle_model: Specific brand/model if mentioned (BMW, Tesla, luxury, SUV, etc.) or null
+2. vehicle_type: Category if mentioned (economy, luxury, sports, SUV, offroad, etc.) or null
+3. rental_start_date: Specific date/timeframe if mentioned (tomorrow, April 28, next week, etc.) or null
+4. rental_duration: Duration if mentioned (5 days, 2 weeks, 3 months, 24 hours, etc.) or null
+5. budget: Budget if mentioned ($100/day, AED 500, 600, etc.) or null
+6. confirmed: true only if they used confirmation words (yes, agree, sure, correct, sounds good, ok, yep) or null/false
+
+EXAMPLES:
+- "I want a Tesla" → {"vehicle_model": "Tesla"}
+- "Next week for 2 weeks" → {"rental_start_date": "next week", "rental_duration": "2 weeks"}
+- "Yeah sounds good" → {"confirmed": true}
+- "What's the price?" → {} (no details, just question)
+
+Return ONLY valid JSON with non-null fields."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,  # More deterministic
+                max_tokens=150
+            )
+
+            result = response.choices[0].message.content.strip()
+
+            import json
+            try:
+                # Strip markdown if present
+                if "```" in result:
+                    result = result.split("```")[1]
+                    if result.startswith("json"):
+                        result = result[4:]
+                    result = result.strip()
+
+                extracted = json.loads(result)
+                # Filter out None/null values
+                return {k: v for k, v in extracted.items() if v}
+            except Exception as e:
+                print(f"⚠️ JSON parse error in extract_all_fields: {e}, result: {result}")
+                return {}
+
+        except Exception as e:
+            print(f"✗ Field extraction error: {str(e)}")
+            return {}
+
 openai_service = OpenAIService()

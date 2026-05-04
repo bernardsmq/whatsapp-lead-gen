@@ -10,7 +10,19 @@ export default function Chats() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchLeads();
+    // Test API connection first
+    const testConnection = async () => {
+      try {
+        console.log('Testing API connection...');
+        const api = (await import('../lib/api')).default;
+        const healthCheck = await api.get('/health');
+        console.log('✓ API health check passed:', healthCheck.data);
+      } catch (err) {
+        console.error('✗ API health check failed:', err.message);
+      }
+      fetchLeads();
+    };
+    testConnection();
   }, []);
 
   const fetchLeads = async () => {
@@ -24,7 +36,10 @@ export default function Chats() {
         setSelectedLeadId(response.data[0].id);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch leads');
+      console.error('Full error object:', err);
+      console.error('Error response:', err.response);
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch leads';
+      setError(`Error: ${errorMsg} (Check console for details)`);
       console.error('Error fetching leads:', err);
     } finally {
       setLoadingLeads(false);

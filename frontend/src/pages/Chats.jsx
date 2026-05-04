@@ -131,31 +131,57 @@ export default function Chats() {
                 </div>
               ) : (
                 <div className="p-6 space-y-4">
-                  {conversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      className={`flex gap-3 ${
-                        conv.sender === 'ai' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
+                  {conversations.map((conv) => {
+                    const isTemplate = conv.sender === 'template';
+                    const statusMap = {
+                      'read': { icon: '✓✓', color: 'text-blue-400' },
+                      'delivered': { icon: '✓', color: 'text-green-400' },
+                      'failed': { icon: '✗', color: 'text-red-400' },
+                      'sent': { icon: '⏱', color: 'text-gray-400' },
+                      'pending': { icon: '⏱', color: 'text-gray-400' },
+                    };
+                    const status = statusMap[conv.delivery_status] || { icon: '◦', color: 'text-gray-500' };
+
+                    return (
                       <div
-                        className={`max-w-xs px-4 py-2 rounded-lg ${
-                          conv.sender === 'ai'
-                            ? 'bg-yellow-600 text-white rounded-br-none'
-                            : 'bg-slate-700 text-slate-200 rounded-bl-none'
+                        key={conv.id}
+                        className={`flex gap-3 ${
+                          (conv.sender === 'ai' || isTemplate) ? 'justify-end' : 'justify-start'
                         }`}
                       >
-                        <p className="text-sm">{conv.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          conv.sender === 'ai'
-                            ? 'text-yellow-100'
-                            : 'text-slate-400'
-                        }`}>
-                          {new Date(conv.created_at).toLocaleTimeString()}
-                        </p>
+                        <div className="flex flex-col max-w-xs">
+                          <div
+                            className={`px-4 py-2 rounded-lg ${
+                              isTemplate
+                                ? 'bg-purple-700 text-purple-100 rounded-br-none border border-purple-600'
+                                : conv.sender === 'ai'
+                                ? 'bg-yellow-600 text-white rounded-br-none'
+                                : 'bg-slate-700 text-slate-200 rounded-bl-none'
+                            }`}
+                          >
+                            {isTemplate && <p className="text-xs font-semibold mb-1">📋 Template</p>}
+                            <p className="text-sm">{conv.content}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className={`text-xs ${
+                                conv.sender === 'ai'
+                                  ? 'text-yellow-100'
+                                  : isTemplate
+                                  ? 'text-purple-200'
+                                  : 'text-slate-400'
+                              }`}>
+                                {new Date(conv.created_at).toLocaleTimeString()}
+                              </p>
+                              {conv.delivery_status && (
+                                <p className={`text-xs font-bold ${status.color}`}>
+                                  {status.icon}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

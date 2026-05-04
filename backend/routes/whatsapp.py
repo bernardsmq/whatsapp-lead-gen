@@ -230,6 +230,40 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
 
         print(f"Extracted - Score: {score}, Budget: {budget}, Start Date: {start_date}, Duration: {rental_duration}, Car: {car_model}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
 
+        # Check if only 1 field is missing and timeout has passed (1 minute)
+        missing_fields = []
+        if budget in ["not mentioned"]:
+            missing_fields.append("budget")
+        if start_date in ["not mentioned"]:
+            missing_fields.append("start_date")
+        if rental_duration in ["not mentioned"]:
+            missing_fields.append("rental_duration")
+
+        only_one_field_missing = len(missing_fields) == 1
+        timeout_seconds = 60  # 1 minute timeout
+
+        # If only 1 field missing, check if we asked for it more than 1 minute ago
+        should_send_warm_timeout = False
+        if only_one_field_missing and car_model not in ["not mentioned"]:
+            from datetime import datetime, timedelta
+            try:
+                # Get all messages from last 2 minutes
+                recent_convs = [m for m in conv_response.data if m.get("created_at")]
+
+                # Find the oldest message timestamp
+                if recent_convs:
+                    oldest_conv_time = datetime.fromisoformat(recent_convs[0]["created_at"].replace('Z', '+00:00'))
+                    now = datetime.utcnow().replace(tzinfo=None)
+                    oldest_conv_time_clean = oldest_conv_time.replace(tzinfo=None) if oldest_conv_time.tzinfo else oldest_conv_time
+
+                    time_diff = (now - oldest_conv_time_clean).total_seconds()
+
+                    if time_diff > timeout_seconds:
+                        should_send_warm_timeout = True
+                        print(f"⏱️ Only 1 field missing ({missing_fields[0]}) and {time_diff:.0f}s have passed - will send as warm lead")
+            except Exception as e:
+                print(f"⚠️ Error checking timeout: {e}")
+
         # Update lead score
         supabase.table("leads").update({
             "score": score,
@@ -392,6 +426,26 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         elif not ai_response and is_asking_question and not is_asking_about_pricing:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
             print(f"Answering general question")
+        # PRIORITY 4.5: If only 1 field missing and 1+ minutes passed, auto-send as warm lead
+        elif not ai_response and should_send_warm_timeout and not is_already_handled:
+            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")
+            sales_msg = f"🎉 WARM LEAD (1 field pending)\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}\n\n⏳ Missing: {missing_fields[0].replace('_', ' ').title()}\n(Customer didn't respond within 1 minute)"
+
+            print(f"Sending warm timeout lead to sales guy: {sales_msg}")
+            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
+
+            try:
+                from datetime import datetime
+                supabase.table("leads").update({
+                    "status": "sent_to_sales",
+                    "score": "warm",
+                    "sent_to_sales_at": datetime.utcnow().isoformat()
+                }).eq("id", lead_id).execute()
+                print(f"✓ Updated lead status to sent_to_sales with warm score")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
+
+            ai_response = f"Thanks! Our sales team will be in touch shortly. They may ask for your {missing_fields[0].replace('_', ' ')} to complete your booking."
         # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
         elif not ai_response and has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Form, Depends
 from services.twilio_whatsapp_service import twilio_whatsapp_service
 from services.openai_service import openai_service
+from services.conversation_manager import ConversationManager
+from services.response_generator import ResponseGenerator
 from database import supabase
 import os
 import json
@@ -72,16 +74,28 @@ async def webhook_receive(request: Request):
         return {"status": "error", "detail": str(e)}
 
 async def process_incoming_message(phone: str, message_text: str, message_id: str):
-    """Process incoming WhatsApp message and qualify lead"""
-    try:
-        print(f"\nProcessing message from {phone}")
+    """
+    Process incoming WhatsApp message using intelligent conversation manager.
 
-        # Find lead by phone number
+    Flow:
+    1. Load/create lead
+    2. Check for opt-out immediately
+    3. Store message in conversations
+    4. Load conversation manager
+    5. Extract fields from message
+    6. Generate intelligent response
+    7. Send response + log
+    """
+    try:
+        print(f"\n=== INCOMING MESSAGE ===")
+        print(f"From: {phone}")
+        print(f"Message: {message_text[:100]}...")
+
+        # STEP 1: Find or create lead
         response = supabase.table("leads").select("*").eq("phone", phone).execute()
 
         if not response.data:
-            print(f"Lead not found for phone {phone}, creating new lead")
-            # Create a new lead if one doesn't exist
+            print(f"Lead not found, creating new lead")
             new_lead_response = supabase.table("leads").insert({
                 "phone": phone,
                 "first_name": "Customer",
@@ -89,529 +103,77 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 "status": "qualified"
             }).execute()
 
-            if new_lead_response.data:
-                lead = new_lead_response.data[0]
-                lead_id = lead["id"]
-                first_name = "Customer"
-                print(f"✓ Created new lead: {lead_id}")
-            else:
-                print(f"✗ Failed to create lead for {phone}")
+            if not new_lead_response.data:
+                print(f"✗ Failed to create lead")
                 return
+
+            lead = new_lead_response.data[0]
+            lead_id = lead["id"]
+            first_name = "Customer"
         else:
             lead = response.data[0]
             lead_id = lead["id"]
             first_name = lead.get("first_name", "Customer")
-            print(f"Found lead: {first_name}")
 
-        # Get previous rental details from conversation history if any
-        previous_details = {}
-        qual_response = supabase.table("qualifications").select("special_notes").eq("lead_id", lead_id).execute()
-        if qual_response.data and qual_response.data[0].get("special_notes"):
-            import json as json_module
-            try:
-                previous_details = json_module.loads(qual_response.data[0]["special_notes"])
-            except:
-                previous_details = {}
+        print(f"✓ Lead: {first_name} ({lead_id})")
 
-        # Car brands including abbreviations
-        car_brands = {
-            "bmw": "bmw",
-            "audi": "audi",
-            "mercedes": "mercedes",
-            "tesla": "tesla",
-            "porsche": "porsche",
-            "lamborghini": "lamborghini",
-            "lambo": "lamborghini",
-            "ferrari": "ferrari",
-            "jeep": "jeep",
-            "ford": "ford",
-            "chevy": "chevy",
-            "honda": "honda",
-            "toyota": "toyota",
-            "nissan": "nissan",
-            "range rover": "range rover",
-            "bentley": "bentley",
-            "rolls royce": "rolls royce",
-            "bugatti": "bugatti",
-            "maserati": "maserati"
-        }
-
+        # STEP 2: Check for opt-out immediately
         message_lower = message_text.lower()
-        mentioned_car = None
-        for car_key, car_name in car_brands.items():
-            if car_key in message_lower:
-                mentioned_car = car_name
-                break
+        optout_keywords = ["don't message", "do not message", "don't text", "do not text", "stop messaging",
+                          "stop texting", "unsubscribe", "do not contact", "dont message", "dont text",
+                          "don't contact", "no messages", "remove me", "stop"]
 
-        # Check if customer wants a fresh inquiry (different car, new inquiry, etc)
-        fresh_inquiry_keywords = ["another car", "different car", "new car", "different", "change car", "i need another", "want another", "looking for another"]
-        wants_fresh_inquiry = any(keyword in message_lower for keyword in fresh_inquiry_keywords)
+        if any(keyword in message_lower for keyword in optout_keywords):
+            print(f"✓ Opt-out detected")
+            supabase.table("leads").update({"status": "do_not_contact"}).eq("id", lead_id).execute()
+            twilio_whatsapp_service.send_text_message(phone, "Ok no problem 👍")
+            supabase.table("conversations").insert({
+                "lead_id": lead_id,
+                "content": "Ok no problem 👍",
+                "sender": "ai"
+            }).execute()
+            print(f"✓ Opt-out handled")
+            return
 
-        # Also trigger fresh inquiry if they mention a car and already have a previous booking
-        if mentioned_car and lead.get("status") == "sent_to_sales":
-            wants_fresh_inquiry = True
-            print(f"Fresh inquiry: mentioned {mentioned_car}")
-
-        # If they want a fresh inquiry, reset their status and clear booking details
-        if wants_fresh_inquiry and lead.get("status") == "sent_to_sales":
-            print(f"Fresh inquiry detected for {first_name} - resetting status")
-            supabase.table("leads").update({
-                "score": "cold",
-                "status": "new_inquiry"
-            }).eq("id", lead_id).execute()
-
-            # Clear previous qualification
-            qual_response = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
-            if qual_response.data:
-                qual_id = qual_response.data[0]["id"]
-                supabase.table("qualifications").delete().eq("id", qual_id).execute()
-
-        # Store conversation message
+        # STEP 3: Store incoming message
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": message_text,
             "sender": "user"
         }).execute()
 
-        # Get conversation history (including the message we just stored)
-        conv_response = supabase.table("conversations").select("content, sender").eq("lead_id", lead_id).order("created_at", desc=False).execute()
+        # STEP 4: Load conversation manager
+        conv_mgr = ConversationManager(lead_id, supabase)
+        conversation_history = conv_mgr.get_conversation_history_text()
 
-        conversation_history = ""
-        if conv_response.data:
-            for msg in conv_response.data:
-                sender = "Lead" if msg["sender"] == "user" else "Agent"
-                conversation_history += f"{sender}: {msg['content']}\n"
+        # STEP 5: Extract fields from message using GPT
+        print(f"Extracting fields from message...")
+        extracted_fields = openai_service.extract_all_fields(message_text, conversation_history)
+        print(f"Extracted fields: {extracted_fields}")
 
-        # Qualify the lead using OpenAI WITH full conversation history
-        print(f"Qualifying lead with OpenAI...")
-        qualification = openai_service.qualify_lead(first_name, message_text, conversation_history)
+        # STEP 6: Generate intelligent response using ResponseGenerator
+        responder = ResponseGenerator(first_name, conv_mgr)
+        ai_response = responder.generate(message_text, extracted_fields)
 
-        score = qualification.get("lead_score", "cold")
-        budget = qualification.get("budget", "not mentioned")
-        start_date = qualification.get("start_date", "not mentioned")
-        rental_duration = qualification.get("rental_duration", "not mentioned")
-        car_model = qualification.get("car_model", "not mentioned")
-        is_confirmation = qualification.get("is_confirmation", False)
+        print(f"Generated response: {ai_response}")
 
-        # If current message didn't extract a field but previous messages did, reuse it
-        # BUT only if it's the SAME car (no fresh inquiry/car switch)
-        previous_car = previous_details.get("car_model", "not mentioned")
-        is_different_car = (car_model not in ["not mentioned"] and
-                           previous_car not in ["not mentioned", None, ""] and
-                           car_model.lower() != previous_car.lower())
-
-        if is_different_car:
-            print(f"New car inquiry detected: {car_model} (previously {previous_car}) - clearing old details")
-            # Clear old inquiry details when switching to new car
-            # Don't restore budget, start_date, rental_duration
-            pass
-        else:
-            # Same car or no previous car - safe to restore values
-            if car_model in ["not mentioned"] and previous_car not in ["not mentioned", None, ""]:
-                print(f"Using previous car_model: {previous_car}")
-                car_model = previous_car
-            if budget in ["not mentioned"] and previous_details.get("budget") not in ["not mentioned", None, ""]:
-                print(f"Using previous budget: {previous_details.get('budget')}")
-                budget = previous_details.get("budget")
-            if start_date in ["not mentioned"] and previous_details.get("start_date") not in ["not mentioned", None, ""]:
-                print(f"Using previous start_date: {previous_details.get('start_date')}")
-                start_date = previous_details.get("start_date")
-            if rental_duration in ["not mentioned"] and previous_details.get("rental_duration") not in ["not mentioned", None, ""]:
-                print(f"Using previous rental_duration: {previous_details.get('rental_duration')}")
-                rental_duration = previous_details.get("rental_duration")
-
-        # Calculate all_details_present based on extracted values (more reliable than GPT)
-        # Check for "not mentioned" as missing - need budget, start_date, and rental_duration
-        all_details_present = (
-            budget not in ["not mentioned"] and
-            start_date not in ["not mentioned"] and
-            rental_duration not in ["not mentioned"]
-        )
-
-        print(f"Extracted - Score: {score}, Budget: {budget}, Start Date: {start_date}, Duration: {rental_duration}, Car: {car_model}, Confirmation: {is_confirmation}, All Present: {all_details_present}")
-
-        # Check if only 1 field is missing and timeout has passed (1 minute)
-        missing_fields = []
-        if budget in ["not mentioned"]:
-            missing_fields.append("budget")
-        if start_date in ["not mentioned"]:
-            missing_fields.append("start_date")
-        if rental_duration in ["not mentioned"]:
-            missing_fields.append("rental_duration")
-
-        only_one_field_missing = len(missing_fields) == 1
-        timeout_seconds = 60  # 1 minute timeout
-
-        # If only 1 field missing, check if we asked for it more than 1 minute ago
-        should_send_warm_timeout = False
-        if only_one_field_missing and car_model not in ["not mentioned"]:
-            from datetime import datetime, timedelta
-            try:
-                # Get all messages from last 2 minutes
-                recent_convs = [m for m in conv_response.data if m.get("created_at")]
-
-                # Find the oldest message timestamp
-                if recent_convs:
-                    oldest_conv_time = datetime.fromisoformat(recent_convs[0]["created_at"].replace('Z', '+00:00'))
-                    now = datetime.utcnow().replace(tzinfo=None)
-                    oldest_conv_time_clean = oldest_conv_time.replace(tzinfo=None) if oldest_conv_time.tzinfo else oldest_conv_time
-
-                    time_diff = (now - oldest_conv_time_clean).total_seconds()
-
-                    if time_diff > timeout_seconds:
-                        should_send_warm_timeout = True
-                        print(f"⏱️ Only 1 field missing ({missing_fields[0]}) and {time_diff:.0f}s have passed - will send as warm lead")
-            except Exception as e:
-                print(f"⚠️ Error checking timeout: {e}")
-
-        # Update lead score
-        supabase.table("leads").update({
-            "score": score,
-            "status": "qualified"
-        }).eq("id", lead_id).execute()
-
-        # Update or create qualification record with extracted details
-        qual_response = supabase.table("qualifications").select("id, special_notes").eq("lead_id", lead_id).execute()
-
-        # Store rental details as JSON in special_notes
-        qual_data = {
-            "lead_id": lead_id,
-            "completed_criteria": 1 if score in ["hot", "warm"] else 0,
-            "special_notes": json.dumps({
-                "budget": budget,
-                "start_date": start_date,
-                "rental_duration": rental_duration,
-                "car_model": car_model,
-                "confirmation_sent": False
-            })
-        }
-
-        if qual_response.data:
-            qual_id = qual_response.data[0]["id"]
-            supabase.table("qualifications").update(qual_data).eq("id", qual_id).execute()
-        else:
-            supabase.table("qualifications").insert(qual_data).execute()
-
-        print(f"✓ Lead qualified as {score}")
-
-        # Initialize ai_response to ensure it's always defined
-        ai_response = None
-
-        # PRIORITY: Check for opt-out/do-not-contact requests FIRST
-        optout_keywords = ["don't message", "do not message", "don't text", "do not text", "stop messaging", "stop texting", "unsubscribe", "do not contact", "dont message", "dont text", "don't contact", "no messages", "remove me", "stop"]
-        is_optout_request = any(keyword in message_lower for keyword in optout_keywords)
-
-        if is_optout_request:
-            # Mark lead as do_not_contact
-            supabase.table("leads").update({
-                "status": "do_not_contact"
-            }).eq("id", lead_id).execute()
-
-            ai_response = "Ok no problem 👍"
-            print(f"✓ Lead marked as do_not_contact")
-
-        # Check for pricing-related questions (but only if NOT stating a duration with it)
-        # "how much is it for 24H?" is not a pricing question - it's a duration extraction
-        pricing_keywords = ["price", "cost", "how much", "afford", "expensive", "payment", "pay", "rate", "charge", "fee"]
-        duration_indicators = ["h", "hours", "day", "days", "week", "weeks", "month", "months"]
-        is_asking_about_pricing = any(word in message_text.lower() for word in pricing_keywords) and not any(word in message_text.lower() for word in duration_indicators)
-
-        # Check for simple greetings FIRST
-        greetings = ["hey", "hi", "hello", "yo", "sup", "what's up", "hey there", "hi there"]
-        is_just_greeting = any(message_text.lower().strip().startswith(g) for g in greetings) and len(message_text.strip()) < 15
-
-        # Check if it's a general question (contains "?" OR common question words)
-        question_indicators = ["?", "how", "what", "why", "when", "where", "which", "who", "can you", "could you", "do you", "does", "is", "are", "will you", "would you"]
-        is_asking_question = any(word in message_text.lower() for word in question_indicators)
-
-        # Check for words that mean they DON'T want changes
-        no_change_words = ["no different", "same", "keep it", "that's fine", "sounds good", "good with that", "perfect", "good", "fine"]
-        wants_no_change = any(word in message_text.lower() for word in no_change_words)
-
-        # Check for explicit confirmation words to be more reliable
-        confirmation_words = ["yes", "agree", "ofc", "sure", "correct", "ok", "yep", "absolutely", "definitely", "sounds good"]
-        has_confirmation_word = any(word in message_text.lower() for word in confirmation_words) or wants_no_change
-
-        # Regent's Car Rental Business Info
-        pricing_info = {
-            "mileage": "Extra mileage is AED 1/km, or AED 0.50/km if you prepay (recommended for better value)! Daily includes 250 km, weekly 1,400 km, monthly 2,000 km.",
-            "insurance": "Optional Full Insurance (CDW) costs AED 30/day, AED 100/week, or AED 250/month. Basic insurance is already included - no hidden charges!",
-            "deposit": "Security options: AED 1,000 refundable deposit (returned within 30 days) OR non-deposit option at AED 30/day, AED 80/week, or AED 150/month.",
-            "delivery": "Delivery available: Dubai AED 50, Sharjah AED 150, Ajman AED 250, Other Emirates AED 350. Or collect free from our Business Bay office with complimentary extra mileage!",
-            "driver": "Additional driver costs AED 100 (optional).",
-            "payment": "Card/payment link transactions have a 3.5% admin fee.",
-            "office": "You can collect from our Business Bay office (Office 1856 - Tamani Arts Offices - Al Asayel Street) and enjoy complimentary extra mileage!",
-            "location": "📍 We are located at: Office 1856 - Tamani Arts Offices - Al Asayel Street - Business Bay - Dubai - United Arab Emirates\n\n📞 Phone: +971 58 570 2655\n\nYou're welcome to visit us or give us a call for any further assistance!"
-        }
-
-        # Check if lead has already been sent to sales guy (but not if they're requesting a fresh inquiry)
-        is_already_handled = lead.get("status") == "sent_to_sales" and not wants_fresh_inquiry
-
-        # Check if we've already shown them the confirmation message (they've seen the booking details once)
-        # If they have all details and have received a confirmation message, any new message is either confirmation or support
-        has_seen_confirmation = all_details_present and len(conversation_history.split("\n")) > 4
-
-        # PRIORITY -1 (SUPER HIGH): Photo/Image requests
-        photo_keywords = ["show me", "send me", "send photo", "send pics", "send picture", "photo", "picture", "image", "see the car"]
-        is_asking_for_photo = any(kw in message_lower for kw in photo_keywords)
-
-        # Process all other priorities ONLY if opt-out wasn't already handled
-        if not ai_response:
-            # PRIORITY 0 (HIGHEST): Photo request - answer directly
-            if is_asking_for_photo:
-                # Build missing info list
-                missing_info = []
-                if budget in ["not mentioned"]:
-                    missing_info.append("your budget")
-                if start_date in ["not mentioned"]:
-                    missing_info.append("your start date")
-                if rental_duration in ["not mentioned"]:
-                    missing_info.append("rental duration")
-
-                if missing_info:
-                    missing_str = " and ".join(missing_info)
-                    ai_response = f"Got it you want to see the car, only our sales team can do that. Please tell me {missing_str}, so I can forward you to our sales team ;)"
-                else:
-                    # All details present
-                    ai_response = "Got it you want to see the car, only our sales team can do that. Let me forward you to our sales team ;)"
-                print(f"Photo request detected - sending photo response with missing info: {missing_info}")
-
-        # PRIORITY 1: Pricing/Policy Questions
-        if not ai_response and any(kw in message_lower for kw in ["mileage", "km", "kilometer", "extra mile"]):
-            ai_response = pricing_info["mileage"]
-            print(f"Mileage question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["insurance", "cdw", "coverage", "damage"]):
-            ai_response = pricing_info["insurance"]
-            print(f"Insurance question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["deposit", "security", "refund"]):
-            ai_response = pricing_info["deposit"]
-            print(f"Deposit question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["delivery", "pickup", "collect", "collection"]):
-            ai_response = pricing_info["delivery"]
-            print(f"Delivery question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["additional driver", "extra driver", "second driver"]):
-            ai_response = pricing_info["driver"]
-            print(f"Driver question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["payment", "card", "fee", "admin fee"]):
-            ai_response = pricing_info["payment"]
-            print(f"Payment question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["office", "business bay", "collection"]):
-            ai_response = pricing_info["office"]
-            print(f"Office collection question detected")
-        elif not ai_response and any(kw in message_lower for kw in ["where are you", "location", "address", "contact", "phone", "number", "how to reach"]):
-            ai_response = pricing_info["location"]
-            print(f"Location/contact question detected")
-        # PRIORITY 2: Pure availability questions (do you have / u have / you have)
-        elif not ai_response and any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
-            ai_response = "Yes, we have it ;)"
-            print(f"Pure availability question detected")
-        # PRIORITY 3: Simple greeting - ask what car type they need
-        elif not ai_response and is_just_greeting:
-            if is_already_handled:
-                # Just greet professionally, don't ask for anything
-                greeting_responses = [
-                    "Hello! How can I assist you?",
-                    "Hi there! What can I help with?",
-                    "Good to hear from you! How may I help?",
-                    "Hello! Is there anything else I can help with?",
-                    "Hi! How are you doing today?"
-                ]
-                import random
-                ai_response = random.choice(greeting_responses)
-            else:
-                # Not yet handled, ask for CAR TYPE first with categories
-                ai_response = "Hello! Welcome to our car rental service. What type of car would you like? We offer economy, luxury, sports, SUV, and offroad options."
-            print(f"Greeting detected - responding professionally")
-        # PRIORITY 4: If asking ANY question (at any stage), answer it
-        elif not ai_response and is_asking_question and not is_asking_about_pricing:
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
-            print(f"Answering general question")
-        # PRIORITY 4.5: If only 1 field missing and 1+ minutes passed, auto-send as warm lead
-        elif not ai_response and should_send_warm_timeout and not is_already_handled:
-            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")
-            sales_msg = f"🎉 WARM LEAD (1 field pending)\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}\n\n⏳ Missing: {missing_fields[0].replace('_', ' ').title()}\n(Customer didn't respond within 1 minute)"
-
-            print(f"Sending warm timeout lead to sales guy: {sales_msg}")
-            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
-
-            try:
-                from datetime import datetime
-                supabase.table("leads").update({
-                    "status": "sent_to_sales",
-                    "score": "warm",
-                    "sent_to_sales_at": datetime.utcnow().isoformat()
-                }).eq("id", lead_id).execute()
-                print(f"✓ Updated lead status to sent_to_sales with warm score")
-            except Exception as e:
-                print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
-
-            ai_response = f"Thanks! Our sales team will be in touch shortly. They may ask for your {missing_fields[0].replace('_', ' ')} to complete your booking."
-        # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        elif not ai_response and has_confirmation_word and all_details_present and not is_already_handled:
-            sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")
-            sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
-
-            # Send to sales guy via WhatsApp
-            print(f"Sending lead to sales guy: {sales_msg}")
-            twilio_whatsapp_service.send_text_message(sales_phone, sales_msg)
-
-            # Mark as handled (with error handling - message was sent successfully)
-            try:
-                from datetime import datetime
-                supabase.table("leads").update({
-                    "status": "sent_to_sales",
-                    "sent_to_sales_at": datetime.utcnow().isoformat()
-                }).eq("id", lead_id).execute()
-                print(f"✓ Updated lead status to sent_to_sales with timestamp")
-            except Exception as e:
-                print(f"⚠️ Warning: Could not update status, but message was sent: {e}")
-
-            # Closing message with full details
-            ai_response = f"Thank you! Your inquiry has been received. Our sales team will contact you shortly with a detailed quote."
-        # PRIORITY 6: If all details NOW present but NOT confirming yet, ask for confirmation
-        elif not ai_response and all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
-            # Check if car_model is just a category, not a specific model
-            car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
-            is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
-
-            # If car model not mentioned OR just a category, ask for specific model
-            if car_model in ['not mentioned'] or is_just_category:
-                category_text = f"{car_model.upper()}" if is_just_category else "a"
-                ai_response = f"Thank you. You want {category_text}. What specific model? (Like BMW X5, Range Rover, Tesla Model Y, etc.)"
-                print(f"All details present - asking for specific car model")
-            else:
-                # Car model is specific, ask final confirmation
-                confirmation_msg = f"Excellent. Let me confirm your details: {car_model}, budget {budget}, starting {start_date}, for {rental_duration}. Is everything correct?"
-                ai_response = confirmation_msg
-                print(f"All details including specific car model - asking confirmation")
-        # PRIORITY 7: If some details missing, ask for them in order: budget → start_date → rental_duration
-        elif not ai_response and not all_details_present:
-            # Reset their lead if they're coming from a previous booking
-            if lead.get("status") == "sent_to_sales":
-                qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
-                if qual_resp.data:
-                    supabase.table("qualifications").delete().eq("id", qual_resp.data[0]["id"]).execute()
-
-            # Update their score, keep status as "qualified" for now
-            supabase.table("leads").update({
-                "score": score
-            }).eq("id", lead_id).execute()
-
-            # Ask for missing details in priority order: car_model → budget → start_date → rental_duration
-            # But check conversation history to avoid re-asking the same thing
-            car_question_keywords = ["what type", "what car", "economy", "luxury", "sports", "suv", "offroad", "daily", "bmw", "tesla", "mercedes", "lamborghini", "model"]
-            budget_question_keywords = ["budget", "how much", "cost", "price", "afford", "$", "per day", "per week"]
-            date_question_keywords = ["when", "date", "tomorrow", "next week", "this week", "april", "may", "june"]
-            duration_question_keywords = ["how long", "duration", "days", "weeks", "months", "short-term", "long-term"]
-
-            # Check what we already asked by looking at conversation history
-            conv_lower = conversation_history.lower()
-            already_asked_car = any(kw in conv_lower for kw in car_question_keywords)
-            already_asked_budget = any(kw in conv_lower for kw in budget_question_keywords)
-            already_asked_date = any(kw in conv_lower for kw in date_question_keywords)
-            already_asked_duration = any(kw in conv_lower for kw in duration_question_keywords)
-
-            # Check if the latest message is clearly stating a price (like "600$" or "$600")
-            message_lower = message_text.lower().strip()
-            is_price_statement = any(c.isdigit() for c in message_lower) and ("$" in message_lower or "aed" in message_lower or "dhs" in message_lower)
-
-            # Check if car_model is just a category
-            car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
-            is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
-
-            if (car_model in ["not mentioned"] or is_just_category) and not already_asked_car:
-                if is_just_category:
-                    ai_response = f"Great choice on {car_model.upper()}! What specific model? (Like BMW X5, Tesla Model Y, Range Rover, etc.)"
-                else:
-                    ai_response = "Could you please tell me what type of car you would prefer? We offer economy, luxury, sports, SUV, and offroad vehicles."
-            elif budget in ["not mentioned"] and not already_asked_budget and not is_price_statement:
-                ai_response = "Thank you. What would be your budget for the rental?"
-            elif start_date in ["not mentioned"] and not already_asked_date:
-                ai_response = "When would you like to start your rental?"
-            elif rental_duration in ["not mentioned"] and not already_asked_duration:
-                ai_response = "How many days or months would you need the vehicle for? For example: 5 days, 2 weeks, 1 month, 3 months, etc."
-            else:
-                # Don't repeat questions - just acknowledge and move forward
-                if car_model in ["not mentioned"]:
-                    ai_response = "Thank you. What type of vehicle would you prefer?"
-                elif budget in ["not mentioned"] and not is_price_statement:
-                    ai_response = "And what would be your budget?"
-                elif start_date in ["not mentioned"]:
-                    ai_response = "When would you need to start the rental?"
-                elif rental_duration in ["not mentioned"]:
-                    ai_response = "How many days or months would you need it for?"
-                else:
-                    ai_response = "Thank you for that information!"
-        # PRIORITY 8: If customer wants a fresh inquiry with keywords, ask for car type first
-        elif not ai_response and wants_fresh_inquiry:
-            # For fresh inquiry, ask for car type first (standard flow)
-            ai_response = "No problem. I'd be happy to help with a new inquiry. What type of vehicle would you prefer?"
-        # PRIORITY 9: If lead already sent to sales guy, check time and respond accordingly
-        elif not ai_response and is_already_handled:
-            # Check how long ago they were sent to sales
-            from datetime import datetime
-            try:
-                sent_to_sales_time = lead.get("sent_to_sales_at")
-                if sent_to_sales_time:
-                    # Parse the timestamp
-                    if isinstance(sent_to_sales_time, str):
-                        sent_time = datetime.fromisoformat(sent_to_sales_time.replace('Z', '+00:00'))
-                    else:
-                        sent_time = sent_to_sales_time
-
-                    now = datetime.utcnow().replace(tzinfo=None)
-                    sent_time_clean = sent_time.replace(tzinfo=None) if sent_time.tzinfo else sent_time
-                    time_diff = (now - sent_time_clean).total_seconds() / 60  # minutes
-
-                    if time_diff < 8:
-                        # Within 8 minutes - be reassuring, don't send apology
-                        ai_response = "Our sales team has received your inquiry, they will be soon in touch with you ;)"
-                        print(f"Sent to sales < 8 min ago ({time_diff:.1f} min) - reassurance response")
-                    else:
-                        # After 8 minutes - acknowledge delay and provide phone number
-                        ai_response = "Only the Sales team can proceed with payments and booking. My apologies if they still haven't reached out to you, you can text them to this number: +971585702655"
-                        print(f"Sent to sales {time_diff:.1f} min ago - apology response with phone")
-                else:
-                    # No timestamp, use default response
-                    ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
-            except Exception as e:
-                print(f"Error checking sent_to_sales timestamp: {e}")
-                ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
-        # PRIORITY 10: Fallback - use AI for any other response
-        elif not ai_response and is_asking_about_pricing:
-            if all_details_present:
-                ai_response = "Thank you for your interest. Our sales team will provide you with a detailed pricing quote right away."
-            else:
-                missing_info = []
-                if budget in ["not mentioned"]:
-                    missing_info.append("your budget")
-                if start_date in ["not mentioned"]:
-                    missing_info.append("your start date")
-                if rental_duration in ["not mentioned"]:
-                    missing_info.append("the rental duration")
-                ai_response = f"I'd be happy to help with pricing. Could you please provide {' and '.join(missing_info)}?"
-        elif not ai_response:
-            # For any follow-up questions after confirmation has been shown, respond naturally as customer support
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
-
-        # Safety check - make sure we have a response to send
-        if not ai_response:
-            ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
-            print(f"⚠️ No response generated, using fallback AI response")
-
-        print(f"AI Response: {ai_response}")
-
-        # Send response back via WhatsApp
+        # STEP 7: Send response and log
         twilio_whatsapp_service.send_text_message(phone, ai_response)
-
-        # Store our response in conversations
         supabase.table("conversations").insert({
             "lead_id": lead_id,
             "content": ai_response,
             "sender": "ai"
         }).execute()
 
-        print(f"✓ Message processed and response sent")
+        print(f"✓ Response sent to {first_name}")
+
+        # Check if ready for sales and send to sales team if confirmed
+        if conv_mgr.is_ready_for_sales() and conv_mgr.is_confirmed():
+            print(f"✓ Lead ready for sales handoff")
+            supabase.table("leads").update({
+                "status": "sent_to_sales",
+                "score": "warm"
+            }).eq("id", lead_id).execute()
 
     except Exception as e:
         print(f"✗ Error processing message: {str(e)}")

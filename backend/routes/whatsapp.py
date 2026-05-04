@@ -263,6 +263,19 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         # Initialize ai_response to ensure it's always defined
         ai_response = None
 
+        # PRIORITY: Check for opt-out/do-not-contact requests FIRST
+        optout_keywords = ["don't message", "do not message", "don't text", "do not text", "stop messaging", "stop texting", "unsubscribe", "do not contact", "dont message", "dont text", "don't contact", "no messages", "remove me", "stop"]
+        is_optout_request = any(keyword in message_lower for keyword in optout_keywords)
+
+        if is_optout_request:
+            # Mark lead as do_not_contact
+            supabase.table("leads").update({
+                "status": "do_not_contact"
+            }).eq("id", lead_id).execute()
+
+            ai_response = "Ok no problem 👍"
+            print(f"✓ Lead marked as do_not_contact")
+
         # Check for pricing-related questions (but only if NOT stating a duration with it)
         # "how much is it for 24H?" is not a pricing question - it's a duration extraction
         pricing_keywords = ["price", "cost", "how much", "afford", "expensive", "payment", "pay", "rate", "charge", "fee"]
@@ -308,55 +321,58 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
         photo_keywords = ["show me", "send me", "send photo", "send pics", "send picture", "photo", "picture", "image", "see the car"]
         is_asking_for_photo = any(kw in message_lower for kw in photo_keywords)
 
-        # PRIORITY 0 (HIGHEST): Photo request - answer directly
-        if is_asking_for_photo:
-            # Build missing info list
-            missing_info = []
-            if budget in ["not mentioned"]:
-                missing_info.append("your budget")
-            if start_date in ["not mentioned"]:
-                missing_info.append("your start date")
-            if rental_duration in ["not mentioned"]:
-                missing_info.append("rental duration")
+        # Process all other priorities ONLY if opt-out wasn't already handled
+        if not ai_response:
+            # PRIORITY 0 (HIGHEST): Photo request - answer directly
+            if is_asking_for_photo:
+                # Build missing info list
+                missing_info = []
+                if budget in ["not mentioned"]:
+                    missing_info.append("your budget")
+                if start_date in ["not mentioned"]:
+                    missing_info.append("your start date")
+                if rental_duration in ["not mentioned"]:
+                    missing_info.append("rental duration")
 
-            if missing_info:
-                missing_str = " and ".join(missing_info)
-                ai_response = f"Got it you want to see the car, only our sales team can do that. Please tell me {missing_str}, so I can forward you to our sales team ;)"
-            else:
-                # All details present
-                ai_response = "Got it you want to see the car, only our sales team can do that. Let me forward you to our sales team ;)"
-            print(f"Photo request detected - sending photo response with missing info: {missing_info}")
+                if missing_info:
+                    missing_str = " and ".join(missing_info)
+                    ai_response = f"Got it you want to see the car, only our sales team can do that. Please tell me {missing_str}, so I can forward you to our sales team ;)"
+                else:
+                    # All details present
+                    ai_response = "Got it you want to see the car, only our sales team can do that. Let me forward you to our sales team ;)"
+                print(f"Photo request detected - sending photo response with missing info: {missing_info}")
+
         # PRIORITY 1: Pricing/Policy Questions
-        elif any(kw in message_lower for kw in ["mileage", "km", "kilometer", "extra mile"]):
+        if not ai_response and any(kw in message_lower for kw in ["mileage", "km", "kilometer", "extra mile"]):
             ai_response = pricing_info["mileage"]
             print(f"Mileage question detected")
-        elif any(kw in message_lower for kw in ["insurance", "cdw", "coverage", "damage"]):
+        elif not ai_response and any(kw in message_lower for kw in ["insurance", "cdw", "coverage", "damage"]):
             ai_response = pricing_info["insurance"]
             print(f"Insurance question detected")
-        elif any(kw in message_lower for kw in ["deposit", "security", "refund"]):
+        elif not ai_response and any(kw in message_lower for kw in ["deposit", "security", "refund"]):
             ai_response = pricing_info["deposit"]
             print(f"Deposit question detected")
-        elif any(kw in message_lower for kw in ["delivery", "pickup", "collect", "collection"]):
+        elif not ai_response and any(kw in message_lower for kw in ["delivery", "pickup", "collect", "collection"]):
             ai_response = pricing_info["delivery"]
             print(f"Delivery question detected")
-        elif any(kw in message_lower for kw in ["additional driver", "extra driver", "second driver"]):
+        elif not ai_response and any(kw in message_lower for kw in ["additional driver", "extra driver", "second driver"]):
             ai_response = pricing_info["driver"]
             print(f"Driver question detected")
-        elif any(kw in message_lower for kw in ["payment", "card", "fee", "admin fee"]):
+        elif not ai_response and any(kw in message_lower for kw in ["payment", "card", "fee", "admin fee"]):
             ai_response = pricing_info["payment"]
             print(f"Payment question detected")
-        elif any(kw in message_lower for kw in ["office", "business bay", "collection"]):
+        elif not ai_response and any(kw in message_lower for kw in ["office", "business bay", "collection"]):
             ai_response = pricing_info["office"]
             print(f"Office collection question detected")
-        elif any(kw in message_lower for kw in ["where are you", "location", "address", "contact", "phone", "number", "how to reach"]):
+        elif not ai_response and any(kw in message_lower for kw in ["where are you", "location", "address", "contact", "phone", "number", "how to reach"]):
             ai_response = pricing_info["location"]
             print(f"Location/contact question detected")
         # PRIORITY 2: Pure availability questions (do you have / u have / you have)
-        elif any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
+        elif not ai_response and any(kw in message_lower for kw in ["do you have", "u have", "you have", "u got", "do u have", "have you got"]) and len(message_lower) < 25:
             ai_response = "Yes, we have it ;)"
             print(f"Pure availability question detected")
         # PRIORITY 3: Simple greeting - ask what car type they need
-        elif is_just_greeting:
+        elif not ai_response and is_just_greeting:
             if is_already_handled:
                 # Just greet professionally, don't ask for anything
                 greeting_responses = [
@@ -373,11 +389,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 ai_response = "Hello! Welcome to our car rental service. What type of car would you like? We offer economy, luxury, sports, SUV, and offroad options."
             print(f"Greeting detected - responding professionally")
         # PRIORITY 4: If asking ANY question (at any stage), answer it
-        elif is_asking_question and not is_asking_about_pricing:
+        elif not ai_response and is_asking_question and not is_asking_about_pricing:
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
             print(f"Answering general question")
         # PRIORITY 5: If user confirms (says yes/agree/etc) AND all booking details are present, send to sales guy
-        elif has_confirmation_word and all_details_present and not is_already_handled:
+        elif not ai_response and has_confirmation_word and all_details_present and not is_already_handled:
             sales_phone = os.getenv("SALES_GUY_PHONE", "+971585702655")
             sales_msg = f"🎉 NEW LEAD\n\nName: {first_name}\nPhone: {phone}\nBudget: {budget}\nStart Date: {start_date}\nDuration: {rental_duration}\nCar Model: {car_model if car_model not in ['not mentioned'] else 'Not specified'}"
 
@@ -399,7 +415,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
             # Closing message with full details
             ai_response = f"Thank you! Your inquiry has been received. Our sales team will contact you shortly with a detailed quote."
         # PRIORITY 6: If all details NOW present but NOT confirming yet, ask for confirmation
-        elif all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
+        elif not ai_response and all_details_present and not has_confirmation_word and score in ["hot", "warm"]:
             # Check if car_model is just a category, not a specific model
             car_categories = ["economy", "luxury", "sports", "suv", "offroad", "daily", "premium"]
             is_just_category = car_model.lower() in car_categories if car_model not in ['not mentioned'] else False
@@ -415,7 +431,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 ai_response = confirmation_msg
                 print(f"All details including specific car model - asking confirmation")
         # PRIORITY 7: If some details missing, ask for them in order: budget → start_date → rental_duration
-        elif not all_details_present:
+        elif not ai_response and not all_details_present:
             # Reset their lead if they're coming from a previous booking
             if lead.get("status") == "sent_to_sales":
                 qual_resp = supabase.table("qualifications").select("id").eq("lead_id", lead_id).execute()
@@ -473,11 +489,11 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 else:
                     ai_response = "Thank you for that information!"
         # PRIORITY 8: If customer wants a fresh inquiry with keywords, ask for car type first
-        elif wants_fresh_inquiry:
+        elif not ai_response and wants_fresh_inquiry:
             # For fresh inquiry, ask for car type first (standard flow)
             ai_response = "No problem. I'd be happy to help with a new inquiry. What type of vehicle would you prefer?"
         # PRIORITY 9: If lead already sent to sales guy, check time and respond accordingly
-        elif is_already_handled:
+        elif not ai_response and is_already_handled:
             # Check how long ago they were sent to sales
             from datetime import datetime
             try:
@@ -508,7 +524,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 print(f"Error checking sent_to_sales timestamp: {e}")
                 ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=True)
         # PRIORITY 10: Fallback - use AI for any other response
-        elif is_asking_about_pricing:
+        elif not ai_response and is_asking_about_pricing:
             if all_details_present:
                 ai_response = "Thank you for your interest. Our sales team will provide you with a detailed pricing quote right away."
             else:
@@ -520,7 +536,7 @@ async def process_incoming_message(phone: str, message_text: str, message_id: st
                 if rental_duration in ["not mentioned"]:
                     missing_info.append("the rental duration")
                 ai_response = f"I'd be happy to help with pricing. Could you please provide {' and '.join(missing_info)}?"
-        else:
+        elif not ai_response:
             # For any follow-up questions after confirmation has been shown, respond naturally as customer support
             ai_response = openai_service.generate_response(first_name, message_text, conversation_history, lead_already_sent=is_already_handled)
 
